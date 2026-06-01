@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="GIROK"/>
+<meta name="theme-color" content="#3B1C8C"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<title>GIROK</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet"/>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+<style>html,body{margin:0;padding:0;background:#09090B;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+const THEMES = {
+  dark:{ bg:"#09090B",surface:"#18181B",surface2:"#27272A",border:"rgba(255,255,255,0.07)",borderStrong:"rgba(255,255,255,0.1)",text:"#FAFAFA",muted:"#A1A1AA",dim:"#52525B",dim2:"#71717A",inputBg:"rgba(255,255,255,0.05)",headerBg:"rgba(9,9,11,0.88)",cardBg:"#18181B",tagBg:"rgba(255,255,255,0.06)" },
+  light:{ bg:"#FAFAF9",surface:"#FFFFFF",surface2:"#F4F4F5",border:"rgba(0,0,0,0.08)",borderStrong:"rgba(0,0,0,0.12)",text:"#18181B",muted:"#52525B",dim:"#A1A1AA",dim2:"#71717A",inputBg:"rgba(0,0,0,0.03)",headerBg:"rgba(250,250,249,0.88)",cardBg:"#FFFFFF",tagBg:"rgba(0,0,0,0.04)" },
+};
+
+const STATUS_SETS = {
+  none:null,
+  game:{ live:{label:"운영중",color:"#34D399"},no_update:{label:"업데이트중단",color:"#FBBF24"},closed:{label:"서비스종료",color:"#F87171"} },
+  serial:{ ongoing:{label:"연재중",color:"#34D399"},hiatus:{label:"휴재",color:"#FBBF24"},finished:{label:"완결",color:"#A78BFA"} },
+};
+
+// album sub-type options
+const ALBUM_KINDS = ["정규","미니","싱글"];
+
+const FOLDER_TYPES = {
+  album:{ label:"앨범",emoji:"🎵",color:"#C084FC",statusSet:"none",coverRatio:"1/1",
+    itemFields:[{key:"albumKind",label:"앨범 종류",type:"select",options:ALBUM_KINDS},{key:"creator",label:"가수",placeholder:"가수 이름"},{key:"releaseYear",label:"발매 연도",placeholder:"2024",type:"number"},{key:"genre",label:"장르",placeholder:"팝, 힙합, R&B..."}]},
+  movie:{ label:"영화",emoji:"🎬",color:"#34D399",statusSet:"none",coverRatio:"2/3",
+    itemFields:[{key:"creator",label:"감독",placeholder:"감독 이름"},{key:"releaseYear",label:"개봉 연도",placeholder:"2024",type:"number"},{key:"country",label:"국가",placeholder:"한국, 미국..."}]},
+  anime:{ label:"애니",emoji:"✨",color:"#60A5FA",statusSet:"none",coverRatio:"2/3",
+    itemFields:[{key:"creator",label:"제작사",placeholder:"스튜디오 이름"},{key:"origAuthor",label:"원작 작가",placeholder:"원작 작가"},{key:"releaseYear",label:"방영 연도",placeholder:"2024",type:"number"}]},
+  manga:{ label:"만화",emoji:"📖",color:"#FB923C",statusSet:"serial",coverRatio:"2/3",
+    itemFields:[{key:"creator",label:"작가",placeholder:"작가 이름"},{key:"publisher",label:"출판사",placeholder:"출판사"},{key:"releaseYear",label:"발매 연도",placeholder:"2024",type:"number"},{key:"latestEp",label:"평가 당시 최신화",placeholder:"5권 / 42화"}]},
+  webtoon:{ label:"웹툰",emoji:"🖼️",color:"#F472B6",statusSet:"serial",coverRatio:"2/3",
+    itemFields:[{key:"creator",label:"작가",placeholder:"작가 이름"},{key:"platform",label:"플랫폼",placeholder:"네이버, 카카오..."},{key:"releaseYear",label:"연재 연도",placeholder:"2024",type:"number"},{key:"latestEp",label:"평가 당시 최신화",placeholder:"120화"}]},
+  game:{ label:"게임",emoji:"🎮",color:"#2DD4BF",statusSet:"game",coverRatio:"2/3",
+    itemFields:[{key:"creator",label:"제작사",placeholder:"개발사 이름"},{key:"releaseYear",label:"출시 연도",placeholder:"2024",type:"number"},{key:"version",label:"평가 당시 버전",placeholder:"v1.2.0"}]},
+};
+
+function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
+function getStatusMeta(ft){return STATUS_SETS[FOLDER_TYPES[ft]?.statusSet||"none"];}
+function defaultStatus(ft){const s=getStatusMeta(ft);return s?Object.keys(s)[0]:null;}
+// all status labels across sets (for unified search)
+const ALL_STATUS_LABELS=(()=>{const m={};Object.values(STATUS_SETS).forEach(set=>{if(set)Object.entries(set).forEach(([k,v])=>{m[k]=v.label;});});return m;})();
+
+const SK="mtr-v7", SETTINGS_SK="mtr-v7-settings";
+function loadData(){try{return JSON.parse(localStorage.getItem(SK)||"null");}catch{return null;}}
+function saveData(d){localStorage.setItem(SK,JSON.stringify(d));}
+function loadSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_SK)||"null")||{theme:"dark",sortBy:"newest",confirmDelete:true};}catch{return{theme:"dark",sortBy:"newest",confirmDelete:true};}}
+function saveSettings(s){localStorage.setItem(SETTINGS_SK,JSON.stringify(s));}
+
+// ── IndexedDB image store (big storage) ──
+let _db=null;
+function openDB(){return new Promise((res,rej)=>{if(_db)return res(_db);const r=indexedDB.open("mtr-images",1);r.onupgradeneeded=()=>{r.result.createObjectStore("imgs");};r.onsuccess=()=>{_db=r.result;res(_db);};r.onerror=()=>rej(r.error);});}
+async function idbPut(id,blob){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction("imgs","readwrite");tx.objectStore("imgs").put(blob,id);tx.oncomplete=()=>res(true);tx.onerror=()=>rej(tx.error);});}
+async function idbGet(id){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction("imgs","readonly");const rq=tx.objectStore("imgs").get(id);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>rej(rq.error);});}
+async function idbDelete(id){const db=await openDB();return new Promise((res)=>{const tx=db.transaction("imgs","readwrite");tx.objectStore("imgs").delete(id);tx.oncomplete=()=>res(true);tx.onerror=()=>res(false);});}
+async function idbAll(){const db=await openDB();return new Promise((res)=>{const tx=db.transaction("imgs","readonly");const store=tx.objectStore("imgs");const keys=store.getAllKeys();const vals=store.getAll();let k,v;keys.onsuccess=()=>k=keys.result;vals.onsuccess=()=>v=vals.result;tx.oncomplete=()=>{const o={};k.forEach((key,i)=>o[key]=v[i]);res(o);};tx.onerror=()=>res({});});}
+
+// in-memory cache of data URLs (data URLs never expire, unlike object URLs)
+const _urlCache={};
+async function getImgUrl(id){if(!id)return null;if(_urlCache[id])return _urlCache[id];try{const v=await idbGet(id);if(!v)return null;const url=(typeof v==="string")?v:URL.createObjectURL(v);_urlCache[id]=url;return url;}catch{return null;}}
+
+// compress and return a data URL string (stored directly in IndexedDB)
+function compressImage(file,maxDim=900,quality=0.82){
+  return new Promise((res,rej)=>{const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{let{width,height}=img;if(width>height){if(width>maxDim){height=height*maxDim/width;width=maxDim;}}else{if(height>maxDim){width=width*maxDim/height;height=maxDim;}}const c=document.createElement("canvas");c.width=width;c.height=height;c.getContext("2d").drawImage(img,0,0,width,height);res(c.toDataURL("image/jpeg",quality));};img.onerror=rej;img.src=e.target.result;};reader.onerror=rej;reader.readAsDataURL(file);});
+}
+
+function parseTags(s){if(!s)return[];return s.split(/[#\s]+/).map(t=>t.trim()).filter(Boolean);}
+function nowStamp(){const d=new Date();const p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}시${p(d.getMinutes())}분`;}
+function blobToDataUrl(b){return new Promise((res)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(b);});}
+function dataUrlToBlob(d){const[meta,b64]=d.split(",");const mime=meta.match(/:(.*?);/)[1];const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:mime});}
+
+const DEFAULT_DATA={folders:[{id:"all",name:"전체 기록",folderType:"all",color:"#C084FC",locked:false,pin:null}],items:[]};
+
+function Stars({value,onChange,size=14,T}){
+  const [hov,setHov]=useState(0);
+  return <div style={{display:"flex",gap:2}}>{[1,2,3,4,5].map(n=>(<span key={n} onClick={()=>onChange&&onChange(value===n?0:n)} onMouseEnter={()=>onChange&&setHov(n)} onMouseLeave={()=>onChange&&setHov(0)} style={{fontSize:size,cursor:onChange?"pointer":"default",color:n<=(hov||value)?"#FBBF24":(T?T.surface2:"#3F3F46"),transition:"color .12s"}}>★</span>))}</div>;
+}
+
+function Cover({imgId,ratio,ft,size,radius=10}){
+  const [url,setUrl]=useState(null);
+  useEffect(()=>{let ok=true;getImgUrl(imgId).then(u=>{if(ok)setUrl(u);});return()=>{ok=false;};},[imgId]);
+  return <div style={{width:"100%",aspectRatio:ratio,borderRadius:radius,overflow:"hidden",background:`${ft.color}12`,display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${ft.color}22`}}>
+    {url?<img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:size||32}}>{ft.emoji}</span>}</div>;
+}
+
+function CoverUpload({imgId,ratio,onChange,onError,T}){
+  const ref=useRef();const [url,setUrl]=useState(null);const [loading,setLoading]=useState(false);
+  useEffect(()=>{let ok=true;getImgUrl(imgId).then(u=>{if(ok)setUrl(u);});return()=>{ok=false;};},[imgId]);
+  const handle=async(e)=>{const f=e.target.files[0];if(!f)return;setLoading(true);try{const dataUrl=await compressImage(f);const id=uid();await idbPut(id,dataUrl);_urlCache[id]=dataUrl;setUrl(dataUrl);onChange(id);}catch(err){onError&&onError("이미지를 저장할 수 없어요. 공간을 확인해주세요.");}setLoading(false);};
+  return <div onClick={()=>!loading&&ref.current.click()} style={{width:"100%",aspectRatio:ratio,borderRadius:12,overflow:"hidden",background:T.inputBg,border:`1.5px dashed ${T.borderStrong}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+    {loading?<div style={{color:T.dim2,fontSize:12}}>처리 중...</div>:url?<img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,color:T.dim}}><span style={{fontSize:28}}>📸</span><span style={{fontSize:11,fontFamily:"'Noto Sans KR',sans-serif"}}>갤러리에서 선택</span></div>}
+    <input ref={ref} type="file" accept="image/*" onChange={handle} style={{display:"none"}}/>
+  </div>;
+}
+
+function ColorPicker({value,onChange,T}){
+  return <div style={{display:"flex",gap:10,alignItems:"center"}}>
+    <input type="color" value={value} onChange={e=>onChange(e.target.value)} style={{width:54,height:44,border:`1px solid ${T.borderStrong}`,borderRadius:10,background:"transparent",cursor:"pointer",padding:2}}/>
+    <input value={value} onChange={e=>{let v=e.target.value;if(v&&!v.startsWith("#"))v="#"+v;onChange(v);}} placeholder="#C084FC" maxLength={7} style={{flex:1,background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:10,color:T.text,padding:"12px 14px",fontSize:14,fontFamily:"monospace",outline:"none",textTransform:"uppercase"}}/>
+    <div style={{width:44,height:44,borderRadius:10,background:value,border:`1px solid ${T.borderStrong}`}}/></div>;
+}
+
+function ItemCard({item,folderType,onEdit,onDelete,onOpen,T}){
+  const ft=FOLDER_TYPES[item._displayType||folderType]||FOLDER_TYPES.movie;
+  const sset=getStatusMeta(item._displayType||folderType);
+  const s=sset?(sset[item.itemStatus]||Object.values(sset)[0]):null;
+  const infoRows=ft.itemFields.filter(f=>f.key!=="albumKind").map(f=>({label:f.label,val:item[f.key]})).filter(r=>r.val);
+  return <div style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:18,overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s ease both",position:"relative"}}>
+    <div style={{position:"absolute",top:10,right:10,display:"flex",gap:6,zIndex:2}}>
+      <button onClick={e=>{e.stopPropagation();onEdit(item);}} style={{width:30,height:30,borderRadius:9,border:"none",background:"rgba(0,0,0,0.55)",color:"#fff",fontSize:13,cursor:"pointer",backdropFilter:"blur(8px)"}}>✏️</button>
+      <button onClick={e=>{e.stopPropagation();onDelete(item.id);}} style={{width:30,height:30,borderRadius:9,border:"none",background:"rgba(190,30,30,0.6)",color:"#fff",fontSize:13,cursor:"pointer",backdropFilter:"blur(8px)"}}>✕</button></div>
+    <div onClick={()=>onOpen&&onOpen(item)} style={{display:"flex",gap:14,padding:"14px",cursor:"pointer"}}>
+      <div style={{width:ft.coverRatio==="1/1"?100:92,flexShrink:0}}><Cover imgId={item.coverId} ratio={ft.coverRatio} ft={ft}/></div>
+      <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:5,paddingRight:28}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{background:`${ft.color}18`,color:ft.color,border:`1px solid ${ft.color}33`,borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:600}}>{ft.emoji} {ft.label}{item.albumKind?` · ${item.albumKind}`:""}</span>
+          {s&&<span style={{background:`${s.color}15`,color:s.color,borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:600}}>{s.label}</span>}</div>
+        <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:16,fontWeight:700,lineHeight:1.25,color:T.text,wordBreak:"keep-all"}}>{item.title}</div>
+        <Stars value={item.rating} size={14} T={T}/>
+        {infoRows.map((r,i)=><div key={i} style={{fontSize:12,color:T.muted}}><span style={{color:T.dim}}>{r.label}</span> · {r.val}</div>)}
+        {item.tags&&item.tags.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:2}}>{item.tags.map((t,i)=><span key={i} style={{background:T.tagBg,color:ft.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:500}}>#{t}</span>)}</div>}
+      </div></div>
+    {(item.oneLiner||item.notes)&&<div onClick={()=>onOpen&&onOpen(item)} style={{borderTop:`1px solid ${T.border}`,padding:"12px 14px",display:"flex",flexDirection:"column",gap:8,cursor:"pointer"}}>
+      {item.oneLiner&&<div style={{display:"flex",gap:8,alignItems:"flex-start"}}><span style={{color:ft.color,fontSize:13,flexShrink:0,marginTop:1}}>❝</span><div style={{fontSize:13,fontWeight:600,color:T.text,lineHeight:1.5,fontStyle:"italic"}}>{item.oneLiner}</div></div>}
+      {item.notes&&<div style={{fontSize:12,color:T.dim2,lineHeight:1.6,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{item.notes}</div>}
+      <div style={{fontSize:11,color:ft.color,fontWeight:600}}>탭하여 전체 보기 →</div></div>}
+  </div>;
+}
+
+function DetailView({item,folderType,onClose,onEdit,T}){
+  const ft=FOLDER_TYPES[item._displayType||folderType]||FOLDER_TYPES.movie;
+  const sset=getStatusMeta(item._displayType||folderType);
+  const s=sset?(sset[item.itemStatus]||Object.values(sset)[0]):null;
+  const infoRows=[...(item.albumKind?[{label:"앨범 종류",val:item.albumKind}]:[]),...ft.itemFields.filter(f=>f.key!=="albumKind").map(f=>({label:f.label,val:item[f.key]})).filter(r=>r.val)];
+  return <div style={{position:"fixed",inset:0,background:T.bg,zIndex:400,overflowY:"auto",animation:"fadeIn .2s ease",maxWidth:480,margin:"0 auto"}}>
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",maxWidth:480,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, ${ft.color}33, ${ft.color}10 45%, transparent 70%)`}}/>
+    <div style={{position:"sticky",top:0,zIndex:10,background:T.headerBg,backdropFilter:"blur(20px)",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${T.border}`}}>
+      <button onClick={onClose} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"6px 12px",fontSize:13,cursor:"pointer"}}>← 닫기</button>
+      <button onClick={()=>onEdit(item)} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"6px 12px",fontSize:13,cursor:"pointer",fontWeight:600}}>✏️ 수정</button></div>
+    <div style={{padding:"24px 20px 60px",position:"relative",zIndex:1,display:"flex",flexDirection:"column",gap:18}}>
+      <div style={{width:ft.coverRatio==="1/1"?"70%":"55%",margin:"0 auto",boxShadow:`0 12px 40px ${ft.color}22`,borderRadius:16}}><Cover imgId={item.coverId} ratio={ft.coverRatio} ft={ft} size={64} radius={16}/></div>
+      <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
+        <span style={{background:`${ft.color}18`,color:ft.color,border:`1px solid ${ft.color}33`,borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600}}>{ft.emoji} {ft.label}</span>
+        {s&&<span style={{background:`${s.color}15`,color:s.color,borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600}}>{s.label}</span>}</div>
+      <div style={{textAlign:"center"}}><div style={{fontFamily:"'Noto Serif KR',serif",fontSize:24,fontWeight:700,lineHeight:1.3,color:T.text,wordBreak:"keep-all",marginBottom:10}}>{item.title}</div><div style={{display:"flex",justifyContent:"center"}}><Stars value={item.rating} size={22} T={T}/></div></div>
+      {infoRows.length>0&&<div style={{background:T.cardBg,borderRadius:16,border:`1px solid ${T.border}`,padding:"4px 16px"}}>{infoRows.map((r,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"12px 0",borderBottom:i<infoRows.length-1?`1px solid ${T.border}`:"none"}}><span style={{fontSize:13,color:T.dim2}}>{r.label}</span><span style={{fontSize:13,color:T.text,fontWeight:600}}>{r.val}</span></div>)}</div>}
+      {item.tags&&item.tags.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center"}}>{item.tags.map((t,i)=><span key={i} style={{background:T.tagBg,color:ft.color,borderRadius:8,padding:"4px 11px",fontSize:12,fontWeight:500}}>#{t}</span>)}</div>}
+      {item.oneLiner&&<div style={{background:`${ft.color}10`,borderRadius:16,border:`1px solid ${ft.color}22`,padding:"16px 18px",display:"flex",gap:10,alignItems:"flex-start"}}><span style={{color:ft.color,fontSize:20,flexShrink:0}}>❝</span><div style={{fontSize:15,fontWeight:600,color:T.text,lineHeight:1.5,fontStyle:"italic"}}>{item.oneLiner}</div></div>}
+      {item.notes&&<div style={{background:T.cardBg,borderRadius:16,border:`1px solid ${T.border}`,padding:"18px"}}><div style={{fontSize:11,fontWeight:700,color:T.dim,letterSpacing:"0.08em",marginBottom:10}}>감상</div><div style={{fontSize:14,color:T.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{item.notes}</div></div>}
+      <div style={{textAlign:"center",fontSize:11,color:T.dim,fontFamily:"monospace"}}>{new Date(item.createdAt).toLocaleDateString("ko-KR")} 기록</div></div>
+  </div>;
+}
+
+function ConfirmDialog({title,message,confirmText="삭제",danger=true,onConfirm,onCancel,T}){
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)",padding:24}} onClick={e=>e.target===e.currentTarget&&onCancel()}>
+    <div style={{background:T.surface,border:`1px solid ${T.borderStrong}`,borderRadius:20,padding:"24px 22px",width:"100%",maxWidth:320,display:"flex",flexDirection:"column",gap:16,animation:"fadeUp .2s ease both"}}>
+      <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:17,fontWeight:700,color:T.text}}>{title}</div>
+      {message&&<div style={{fontSize:13,color:T.dim2,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{message}</div>}
+      <div style={{display:"flex",gap:10,marginTop:4}}><button onClick={onCancel} style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${T.border}`,background:T.inputBg,color:T.text,fontSize:14,fontWeight:600,cursor:"pointer"}}>취소</button>
+        <button onClick={onConfirm} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:danger?"#DC2626":"#7C3AED",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>{confirmText}</button></div></div></div>;
+}
+
+function PinModal({onConfirm,onCancel,mode="enter",title="PIN 입력",T}){
+  const [pin,setPin]=useState("");const [confirm,setConfirm]=useState("");const [step,setStep]=useState(1);const [err,setErr]=useState("");
+  const handleKey=(v)=>{setErr("");if(mode==="set"){if(step===1){const n=pin+v;if(n.length<=4){setPin(n);if(n.length===4)setStep(2);}}else{const n=confirm+v;if(n.length<=4){setConfirm(n);if(n.length===4){if(n===pin)onConfirm(n);else{setErr("일치하지 않아요");setConfirm("");setStep(1);setPin("");}}}}}else{const n=pin+v;if(n.length<=4){setPin(n);if(n.length===4)onConfirm(n);}}};
+  const del=()=>{if(mode==="set"&&step===2)setConfirm(c=>c.slice(0,-1));else setPin(p=>p.slice(0,-1));};
+  const display=mode==="set"&&step===2?confirm:pin;
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}}>
+    <div style={{background:T.surface,border:`1px solid ${T.borderStrong}`,borderRadius:24,padding:"32px 28px",width:300,display:"flex",flexDirection:"column",gap:18,alignItems:"center"}}>
+      <div style={{fontSize:32}}>🔒</div><div style={{fontFamily:"'Noto Serif KR',serif",fontSize:16,fontWeight:700,color:T.text}}>{title}</div>
+      {mode==="set"&&<div style={{fontSize:12,color:T.dim2}}>{step===1?"PIN 4자리 입력":"한 번 더 입력"}</div>}
+      <div style={{display:"flex",gap:12}}>{[0,1,2,3].map(i=><div key={i} style={{width:14,height:14,borderRadius:"50%",background:i<display.length?"#C084FC":T.surface2,border:"2px solid "+(i<display.length?"#C084FC":T.dim)}}/>)}</div>
+      {err&&<div style={{fontSize:12,color:"#F87171"}}>{err}</div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:"100%"}}>{[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((k,i)=><button key={i} onClick={()=>k==="⌫"?del():k!==""?handleKey(String(k)):null} style={{padding:"14px 0",borderRadius:12,border:`1px solid ${T.border}`,background:k==="⌫"?"rgba(248,113,113,0.12)":T.inputBg,color:k===""?"transparent":k==="⌫"?"#F87171":T.text,fontSize:k==="⌫"?16:20,fontWeight:600,cursor:k===""?"default":"pointer"}}>{k}</button>)}</div>
+      <button onClick={onCancel} style={{background:"none",border:"none",color:T.dim2,fontSize:13,cursor:"pointer"}}>취소</button></div></div>;
+}
+
+function FolderModal({folder,onSave,onDelete,onClose,T}){
+  const [name,setName]=useState(folder?.name||"");
+  const [folderType,setFolderType]=useState(folder?.folderType&&folder.folderType!=="all"?folder.folderType:"movie");
+  const [color,setColor]=useState(folder?.color||FOLDER_TYPES.movie.color);
+  const [locked,setLocked]=useState(folder?.locked||false);
+  const ft=FOLDER_TYPES[folderType];const sset=STATUS_SETS[ft.statusSet];
+  const lbl={fontSize:11,fontWeight:600,color:T.muted,letterSpacing:"0.06em",marginBottom:8,display:"block"};
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:300,display:"flex",alignItems:"flex-end",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:480,margin:"0 auto",padding:"20px 20px 36px",display:"flex",flexDirection:"column",gap:18,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both",maxHeight:"90vh",overflowY:"auto"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>{folder?"폴더 수정":"새 폴더"}</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      <div><label style={lbl}>폴더 종류</label><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{Object.entries(FOLDER_TYPES).map(([k,v])=><button key={k} onClick={()=>{setFolderType(k);setColor(v.color);}} style={{padding:"12px 8px",borderRadius:12,border:`1px solid ${folderType===k?v.color:T.border}`,background:folderType===k?`${v.color}18`:"transparent",color:folderType===k?v.color:T.dim2,cursor:"pointer",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><span style={{fontSize:18}}>{v.emoji}</span>{v.label}</button>)}</div></div>
+      <div style={{background:T.inputBg,borderRadius:12,padding:"12px 14px",border:`1px solid ${T.border}`}}><div style={{fontSize:11,color:T.dim,marginBottom:8,fontWeight:600}}>기록할 정보</div>{ft.itemFields.map(f=><div key={f.key} style={{fontSize:12,color:T.dim2,padding:"2px 0"}}>• {f.label}</div>)}{sset&&<div style={{fontSize:12,color:T.dim2,padding:"2px 0"}}>• 상태: {Object.values(sset).map(s=>s.label).join(" / ")}</div>}<div style={{fontSize:12,color:T.dim2,padding:"2px 0"}}>• 커버 비율: {ft.coverRatio==="1/1"?"정사각형 (1:1)":"포스터 (2:3)"}</div></div>
+      <div><label style={lbl}>폴더 이름</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={`${ft.emoji} ${ft.label} 폴더`} style={{width:"100%",background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:12,color:T.text,padding:"11px 14px",fontSize:14,outline:"none",boxSizing:"border-box"}}/></div>
+      <div><label style={lbl}>색상</label><ColorPicker value={color} onChange={setColor} T={T}/></div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:T.inputBg,borderRadius:12,padding:"12px 16px",border:`1px solid ${T.border}`}}><div><div style={{fontSize:14,fontWeight:600,color:T.text}}>🔒 잠금 폴더</div><div style={{fontSize:11,color:T.dim2,marginTop:2}}>PIN으로 보호</div></div><div onClick={()=>setLocked(l=>!l)} style={{width:46,height:26,borderRadius:13,background:locked?"#7C3AED":T.surface2,position:"relative",cursor:"pointer",transition:"background .2s"}}><div style={{position:"absolute",top:3,left:locked?23:3,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/></div></div>
+      <button onClick={()=>onSave({name:(name.trim()||`${ft.emoji} ${ft.label}`),folderType,color,locked})} style={{padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,#7C3AED,${color})`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>저장</button>
+      {folder&&onDelete&&<button onClick={onDelete} style={{padding:"13px",borderRadius:14,border:"1px solid rgba(248,113,113,0.3)",background:"rgba(248,113,113,0.08)",color:"#F87171",fontSize:14,fontWeight:700,cursor:"pointer"}}>🗑️ 이 폴더 삭제</button>}</div></div>;
+}
+
+function ItemModal({item,folder,folders,onSave,onClose,onImgError,T}){
+  const isAllFolder=folder?.folderType==="all";
+  const [pickType,setPickType]=useState(item?._displayType||(isAllFolder?"movie":folder?.folderType)||"movie");
+  const ft=FOLDER_TYPES[pickType];const sset=getStatusMeta(pickType);
+  const [form,setForm]=useState({title:item?.title||"",coverId:item?.coverId||null,rating:item?.rating||0,itemStatus:item?.itemStatus&&sset&&sset[item.itemStatus]?item.itemStatus:defaultStatus(pickType),tags:(item?.tags||[]).map(t=>"#"+t).join(" "),oneLiner:item?.oneLiner||"",notes:item?.notes||"",folderId:item?.folderId||folder?.id||"all",...Object.fromEntries((ft.itemFields||[]).map(f=>[f.key,item?.[f.key]||(f.type==="select"?f.options[0]:"")]))});
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const changeType=(t)=>{const nf=FOLDER_TYPES[t];setPickType(t);setForm(f=>({...f,itemStatus:defaultStatus(t),...Object.fromEntries(nf.itemFields.map(fl=>[fl.key,f[fl.key]||(fl.type==="select"?fl.options[0]:"")]))}));};
+  const lbl={fontSize:11,fontWeight:600,color:T.muted,letterSpacing:"0.06em",marginBottom:8,display:"block"};
+  const inp={width:"100%",background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:12,color:T.text,padding:"11px 14px",fontSize:14,outline:"none",boxSizing:"border-box"};
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:300,display:"flex",alignItems:"flex-end",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"93vh",padding:"20px 20px 36px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,display:"flex",alignItems:"center",gap:8,color:T.text}}><span style={{fontSize:22}}>{ft.emoji}</span>{item?"기록 수정":"새 기록"}</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      {isAllFolder&&<div><label style={lbl}>종류</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{Object.entries(FOLDER_TYPES).map(([k,v])=><button key={k} onClick={()=>changeType(k)} style={{flex:1,minWidth:54,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:600,cursor:"pointer",border:`1px solid ${pickType===k?v.color:T.border}`,background:pickType===k?`${v.color}18`:"transparent",color:pickType===k?v.color:T.dim2}}>{v.emoji} {v.label}</button>)}</div></div>}
+      <div><label style={lbl}>커버 이미지</label><div style={{width:ft.coverRatio==="1/1"?"55%":"42%"}}><CoverUpload imgId={form.coverId} ratio={ft.coverRatio} onChange={id=>set("coverId",id)} onError={onImgError} T={T}/></div></div>
+      <div><label style={lbl}>폴더</label><select value={form.folderId} onChange={e=>set("folderId",e.target.value)} style={{...inp,cursor:"pointer"}}>{folders.map(f=><option key={f.id} value={f.id}>{f.folderType==="all"?"📚":FOLDER_TYPES[f.folderType]?.emoji} {f.name}</option>)}</select></div>
+      <div><label style={lbl}>제목</label><input value={form.title} onChange={e=>set("title",e.target.value)} placeholder="제목" style={inp}/></div>
+      {ft.itemFields.map(f=><div key={f.key}><label style={lbl}>{f.label}</label>
+        {f.type==="select"
+          ?<div style={{display:"flex",gap:8}}>{f.options.map(o=><button key={o} onClick={()=>set(f.key,o)} style={{flex:1,padding:"10px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",border:`1px solid ${form[f.key]===o?ft.color:T.border}`,background:form[f.key]===o?`${ft.color}18`:"transparent",color:form[f.key]===o?ft.color:T.dim2}}>{o}</button>)}</div>
+          :<input value={form[f.key]||""} onChange={e=>set(f.key,e.target.value)} placeholder={f.placeholder} type={f.type||"text"} style={inp}/>}
+      </div>)}
+      <div><label style={lbl}>평점</label><Stars value={form.rating} onChange={v=>set("rating",v)} size={28} T={T}/></div>
+      {sset&&<div><label style={lbl}>상태</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{Object.entries(sset).map(([k,v])=><button key={k} onClick={()=>set("itemStatus",k)} style={{flex:1,padding:"8px",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",minWidth:70,border:`1px solid ${form.itemStatus===k?v.color:T.border}`,background:form.itemStatus===k?`${v.color}18`:"transparent",color:form.itemStatus===k?v.color:T.dim2}}>{v.label}</button>)}</div></div>}
+      <div><label style={lbl}>태그 <span style={{color:T.dim,fontWeight:400}}>#으로 구분</span></label><input value={form.tags} onChange={e=>set("tags",e.target.value)} placeholder="#공포 #스릴러 #2024" style={inp}/></div>
+      <div><label style={lbl}>한줄평</label><input value={form.oneLiner} onChange={e=>set("oneLiner",e.target.value)} placeholder="짧은 감상 한 줄" style={inp}/></div>
+      <div><label style={lbl}>본문 / 자세한 감상</label><textarea value={form.notes} onChange={e=>set("notes",e.target.value)} placeholder="자세한 내용을 적어보세요..." style={{...inp,resize:"vertical",minHeight:90}}/></div>
+      <button onClick={()=>{if(!form.title.trim())return;onSave({...form,_displayType:pickType,tags:parseTags(form.tags),id:item?.id||uid(),createdAt:item?.createdAt||new Date().toISOString()});}} style={{padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,#7C3AED,${ft.color})`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>저장하기</button></div></div>;
+}
+
+function FolderCard({folder,itemCount,onClick,T}){
+  const isAll=folder.folderType==="all";
+  const ft=isAll?{label:"전체",emoji:"📚",color:folder.color}:(FOLDER_TYPES[folder.folderType]||FOLDER_TYPES.movie);
+  return <div onClick={onClick} style={{background:T.cardBg,border:`1px solid ${folder.color}2a`,borderRadius:18,padding:"18px 16px",cursor:"pointer",position:"relative",transition:"transform .2s,box-shadow .2s",display:"flex",flexDirection:"column",gap:12}}
+    onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 8px 24px ${folder.color}20`;}} onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}>
+    {folder.locked&&<div style={{position:"absolute",top:12,right:12,fontSize:11,background:"rgba(251,191,36,0.15)",border:"1px solid #FBBF2433",borderRadius:6,padding:"2px 6px",color:"#FBBF24"}}>🔒</div>}
+    <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:44,height:44,borderRadius:12,background:`${folder.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`1px solid ${folder.color}30`}}>{ft.emoji}</div>
+      <div><div style={{fontFamily:"'Noto Serif KR',serif",fontSize:15,fontWeight:700,color:T.text,paddingRight:folder.locked?20:0}}>{folder.name}</div><div style={{fontSize:11,color:folder.color,fontWeight:600,marginTop:2}}>{ft.label} · {itemCount}개</div></div></div>
+  </div>;
+}
+
+function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,T}){
+  const Row=({icon,title,desc,right})=>(<div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`}}><span style={{fontSize:20}}>{icon}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.text}}>{title}</div>{desc&&<div style={{fontSize:11,color:T.dim2,marginTop:2}}>{desc}</div>}</div>{right}</div>);
+  const sl={fontSize:11,fontWeight:700,color:T.dim,letterSpacing:"0.08em",margin:"8px 4px 4px"};
+  return <div style={{padding:"16px 16px 48px",position:"relative",zIndex:1,display:"flex",flexDirection:"column",gap:10}}>
+    <div style={sl}>화면</div>
+    <Row icon={settings.theme==="dark"?"🌙":"☀️"} title="테마" desc={settings.theme==="dark"?"다크 모드":"라이트 모드"} right={<div style={{display:"flex",gap:4,background:T.inputBg,borderRadius:10,padding:3}}>{[["dark","🌙"],["light","☀️"]].map(([k,e])=><button key={k} onClick={()=>onChange({...settings,theme:k})} style={{padding:"6px 12px",borderRadius:8,border:"none",background:settings.theme===k?"#7C3AED":"transparent",color:settings.theme===k?"#fff":T.dim2,fontSize:14,cursor:"pointer"}}>{e}</button>)}</div>}/>
+    <Row icon="🔃" title="기본 정렬" desc="기록 표시 순서" right={<select value={settings.sortBy} onChange={e=>onChange({...settings,sortBy:e.target.value})} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,padding:"6px 10px",fontSize:12,outline:"none",cursor:"pointer"}}><option value="newest">최신순</option><option value="oldest">오래된순</option><option value="rating">평점순</option><option value="title">제목순</option></select>}/>
+    <div style={sl}>데이터</div>
+    <Row icon="🗑️" title="삭제 시 확인" desc="기록 삭제 전 물어보기" right={<div onClick={()=>onChange({...settings,confirmDelete:!settings.confirmDelete})} style={{width:46,height:26,borderRadius:13,background:settings.confirmDelete?"#7C3AED":T.surface2,position:"relative",cursor:"pointer"}}><div style={{position:"absolute",top:3,left:settings.confirmDelete?23:3,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/></div>}/>
+    <div onClick={onExport} style={{cursor:"pointer"}}><Row icon="📤" title="백업 내보내기" desc="모든 데이터(사진 포함)를 파일로" right={<span style={{color:T.dim,fontSize:18}}>›</span>}/></div>
+    <label style={{cursor:"pointer"}}><Row icon="📥" title="백업 불러오기" desc="파일에서 복원" right={<span style={{color:T.dim,fontSize:18}}>›</span>}/><input type="file" accept=".json" onChange={onImport} style={{display:"none"}}/></label>
+    <div style={sl}>통계</div>
+    <div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <div><div style={{fontSize:24,fontWeight:700,color:T.text,fontFamily:"'Noto Serif KR',serif"}}>{stats.total}</div><div style={{fontSize:11,color:T.dim2}}>전체 기록</div></div>
+      <div><div style={{fontSize:24,fontWeight:700,color:T.text,fontFamily:"'Noto Serif KR',serif"}}>{stats.folders}</div><div style={{fontSize:11,color:T.dim2}}>폴더</div></div>
+      <div><div style={{fontSize:24,fontWeight:700,color:"#FBBF24",fontFamily:"'Noto Serif KR',serif"}}>{stats.avgRating}</div><div style={{fontSize:11,color:T.dim2}}>평균 별점</div></div>
+      <div><div style={{fontSize:24,fontWeight:700,color:T.text,fontFamily:"'Noto Serif KR',serif"}}>{stats.fiveStars}</div><div style={{fontSize:11,color:T.dim2}}>⭐ 5점 기록</div></div></div>
+    {stats.byType.length>0&&<div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px",display:"flex",flexDirection:"column",gap:10}}>{stats.byType.map(t=><div key={t.key} style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16,width:24}}>{t.emoji}</span><span style={{fontSize:13,color:T.text,width:44}}>{t.label}</span><div style={{flex:1,height:8,background:T.inputBg,borderRadius:4,overflow:"hidden"}}><div style={{width:`${t.pct}%`,height:"100%",background:t.color,borderRadius:4,transition:"width .4s"}}/></div><span style={{fontSize:12,color:T.dim2,width:28,textAlign:"right"}}>{t.count}</span></div>)}</div>}
+    <div style={sl}>위험</div>
+    <div onClick={onWipe} style={{cursor:"pointer"}}><Row icon="⚠️" title="모든 데이터 삭제" desc="복구할 수 없어요" right={<span style={{color:"#F87171",fontSize:18}}>›</span>}/></div>
+    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v1.0</div></div>;
+}
+
+function App(){
+  const [data,setData]=useState(null);
+  const [settings,setSettings]=useState(loadSettings());
+  const [view,setView]=useState("folders");
+  const [activeFolderId,setActiveFolderId]=useState(null);
+  const [unlockedFolders,setUnlockedFolders]=useState({});
+  const [modal,setModal]=useState(null);
+  const [editTarget,setEditTarget]=useState(null);
+  const [pinTarget,setPinTarget]=useState(null);
+  const [search,setSearch]=useState("");
+  const [globalSearch,setGlobalSearch]=useState("");
+  const [toast,setToast]=useState(null);
+  const [confirmCfg,setConfirmCfg]=useState(null);
+  const [detailItem,setDetailItem]=useState(null);
+  const T=THEMES[settings.theme]||THEMES.dark;
+
+  useEffect(()=>{const d=loadData()||DEFAULT_DATA;if(!d.folders.find(f=>f.id==="all"))d.folders.unshift({...DEFAULT_DATA.folders[0]});setData(d);},[]);
+  const persist=(nd)=>{setData(nd);saveData(nd);};
+  const updateSettings=(s)=>{setSettings(s);saveSettings(s);};
+  const showToast=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2500);};
+  if(!data)return <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",color:T.dim2}}>불러오는 중...</div>;
+
+  const activeFolder=data.folders.find(f=>f.id===activeFolderId);
+  const isAllFolder=activeFolder?.folderType==="all";
+  const itemsInFolder=(folder)=>folder.folderType==="all"?data.items:data.items.filter(i=>i.folderId===folder.id);
+  const folderItemCount=(folder)=>itemsInFolder(folder).length;
+  const openFolder=(folder)=>{if(folder.locked&&!unlockedFolders[folder.id]){setPinTarget(folder);setModal("pin-unlock");}else{setActiveFolderId(folder.id);setView("items");setSearch("");}};
+  const getItemDisplayType=(i)=>i._displayType||data.folders.find(f=>f.id===i.folderId)?.folderType||"movie";
+
+  // ── UNIFIED SEARCH: title, creator/fields, tags, status label, album kind ──
+  const matchItem=(i,q)=>{
+    const dt=getItemDisplayType(i);
+    const ft=FOLDER_TYPES[dt];
+    const statusLabel=i.itemStatus?(ALL_STATUS_LABELS[i.itemStatus]||""):"";
+    const hay=[i.title,i.oneLiner,i.notes,i.albumKind,statusLabel,...(i.tags||[]),...ft.itemFields.map(f=>i[f.key])].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(q);
+  };
+  const sortFn=(a,b)=>{if(settings.sortBy==="oldest")return new Date(a.createdAt)-new Date(b.createdAt);if(settings.sortBy==="rating")return (b.rating||0)-(a.rating||0);if(settings.sortBy==="title")return a.title.localeCompare(b.title,"ko");return new Date(b.createdAt)-new Date(a.createdAt);};
+  const filteredItems=activeFolder?itemsInFolder(activeFolder).filter(i=>!search||matchItem(i,search.toLowerCase())).sort(sortFn):[];
+  const globalResults=globalSearch.trim()?data.items.filter(i=>matchItem(i,globalSearch.toLowerCase())).sort(sortFn):[];
+
+  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"1.0"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);showToast("백업 완료 ✅");setModal(null);};
+  const handleImport=(e)=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=async(ev)=>{try{const p=JSON.parse(ev.target.result);const d=p.data||p;if(!d.folders||!d.items)throw new Error();if(p.imgs){for(const[k,durl]of Object.entries(p.imgs)){try{await idbPut(k,durl);}catch{}}}if(p.settings)updateSettings(p.settings);persist(d);showToast("복원 완료 🎉");setModal(null);}catch{showToast("올바른 백업 파일이 아니에요","err");}};r.readAsText(file);};
+  const askConfirm=(cfg)=>setConfirmCfg(cfg);
+  const handleWipe=()=>askConfirm({title:"모든 데이터 삭제",message:"모든 폴더와 기록, 사진이 사라져요.\n복구할 수 없어요. 정말 삭제할까요?",confirmText:"전체 삭제",onConfirm:async()=>{const all=await idbAll();for(const k of Object.keys(all))await idbDelete(k);localStorage.removeItem(SK);persist(DEFAULT_DATA);showToast("전체 삭제 완료");setView("folders");setConfirmCfg(null);}});
+  const delItem=(id)=>{const doDel=()=>{const it=data.items.find(i=>i.id===id);if(it?.coverId)idbDelete(it.coverId);persist({...data,items:data.items.filter(i=>i.id!==id)});setConfirmCfg(null);};if(settings.confirmDelete)askConfirm({title:"기록 삭제",message:"이 기록을 삭제할까요?",onConfirm:doDel});else doDel();};
+  const delFolder=(folder)=>askConfirm({title:"폴더 삭제",message:`"${folder.name}" 폴더와 안의 모든 기록이 사라져요.\n정말 삭제할까요?`,onConfirm:()=>{data.items.filter(i=>i.folderId===folder.id).forEach(i=>i.coverId&&idbDelete(i.coverId));persist({...data,folders:data.folders.filter(f=>f.id!==folder.id),items:data.items.filter(i=>i.folderId!==folder.id)});setConfirmCfg(null);setModal(null);setEditTarget(null);setView("folders");setActiveFolderId(null);showToast("폴더 삭제 완료");}});
+
+  const stats=(()=>{const total=data.items.length;const rated=data.items.filter(i=>i.rating>0);const avg=rated.length?(rated.reduce((s,i)=>s+i.rating,0)/rated.length).toFixed(1):"-";const five=data.items.filter(i=>i.rating===5).length;const counts={};data.items.forEach(i=>{const t=getItemDisplayType(i);counts[t]=(counts[t]||0)+1;});const byType=Object.entries(counts).map(([key,count])=>({key,count,label:FOLDER_TYPES[key]?.label||key,emoji:FOLDER_TYPES[key]?.emoji||"",color:FOLDER_TYPES[key]?.color||"#888",pct:total?Math.round(count/total*100):0})).sort((a,b)=>b.count-a.count);return {total,folders:data.folders.length-1,avgRating:avg,fiveStars:five,byType};})();
+
+  const bgColor=(view==="items"&&activeFolder)?activeFolder.color:"#7C3AED";
+  const headerTitle=view==="settings"?"설정":view==="folders"?"GIROK":`${isAllFolder?"📚":FOLDER_TYPES[activeFolder?.folderType]?.emoji} ${activeFolder?.name}`;
+
+  return (<>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet"/>
+    <style>{`*{box-sizing:border-box;margin:0;padding:0;font-family:'Noto Sans KR',sans-serif;}body{background:${T.bg}}
+      @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+      ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:${T.surface2};border-radius:2px}
+      input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=color]::-webkit-color-swatch-wrapper{padding:0}input[type=color]::-webkit-color-swatch{border:none;border-radius:6px}`}</style>
+    <div style={{minHeight:"100vh",background:T.bg,color:T.text,maxWidth:480,margin:"0 auto",position:"relative",transition:"background .4s"}}>
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",transition:"background .6s ease",maxWidth:480,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, ${bgColor}33, ${bgColor}10 45%, transparent 70%)`}}/>
+      <div style={{position:"sticky",top:0,zIndex:100,background:T.headerBg,backdropFilter:"blur(20px)",padding:"16px 20px 12px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:`linear-gradient(90deg, transparent, ${bgColor}88, transparent)`,transition:"background .6s ease"}}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:view==="settings"?0:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            {view!=="folders"&&<button onClick={()=>{setView("folders");setActiveFolderId(null);}} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"6px 10px",fontSize:13,cursor:"pointer"}}>←</button>}
+            <div><div style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700}}>{headerTitle}</div>
+              {view==="folders"&&<div style={{fontSize:11,color:T.dim2,marginTop:2}}>{data.items.length}개 기록 · {data.folders.length-1}개 폴더</div>}
+              {view==="items"&&<div style={{fontSize:11,color:T.dim2,marginTop:2}}>{filteredItems.length}개의 기록</div>}</div></div>
+          <div style={{display:"flex",gap:8}}>
+            {view==="folders"&&<button onClick={()=>setView("settings")} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"7px 10px",fontSize:14,cursor:"pointer"}}>⚙️</button>}
+            {view==="items"&&!isAllFolder&&<button onClick={()=>{setEditTarget(activeFolder);setModal("folder");}} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"7px 11px",fontSize:13,cursor:"pointer",fontWeight:600}}>폴더 수정</button>}
+            {view!=="settings"&&<button onClick={()=>{setEditTarget(null);setModal(view==="folders"?"folder":"item");}} style={{background:"linear-gradient(135deg,#7C3AED,#C084FC)",border:"none",borderRadius:10,color:"#fff",padding:"7px 14px",fontSize:14,fontWeight:700,cursor:"pointer"}}>+</button>}</div></div>
+        {view!=="settings"&&<input value={view==="folders"?globalSearch:search} onChange={e=>view==="folders"?setGlobalSearch(e.target.value):setSearch(e.target.value)} placeholder={view==="folders"?"제목, 가수, 태그, 상태 등 검색...":"이 폴더에서 검색..."} style={{width:"100%",background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.text,padding:"9px 14px",fontSize:13,outline:"none"}}/>}
+      </div>
+      {view==="settings"
+        ?<SettingsScreen settings={settings} onChange={updateSettings} onExport={handleExport} onImport={handleImport} onWipe={handleWipe} stats={stats} T={T}/>
+        :<div style={{padding:"16px 16px 48px",position:"relative",zIndex:1}}>
+          {view==="folders"&&globalSearch.trim()&&(<div style={{marginBottom:20}}><div style={{fontSize:12,color:T.dim2,marginBottom:10,fontWeight:600}}>검색 결과 {globalResults.length}개</div>{globalResults.length===0?<div style={{textAlign:"center",padding:"30px",color:T.dim,fontSize:13}}>결과 없음</div>:<div style={{display:"flex",flexDirection:"column",gap:12}}>{globalResults.map(item=><ItemCard key={item.id} item={{...item,_displayType:getItemDisplayType(item)}} folderType={getItemDisplayType(item)} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}} onDelete={delItem}/>)}</div>}</div>)}
+          {view==="folders"&&!globalSearch.trim()&&(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{data.folders.map(folder=><FolderCard key={folder.id} folder={folder} itemCount={folderItemCount(folder)} T={T} onClick={()=>openFolder(folder)}/>)}</div>)}
+          {view==="items"&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📭</div><div style={{fontSize:15,color:T.dim2}}>{search?"검색 결과가 없어요":"아직 기록이 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 추가해보세요!</div></div>:<div style={{display:"flex",flexDirection:"column",gap:14}}>{filteredItems.map(item=><ItemCard key={item.id} item={isAllFolder?{...item,_displayType:getItemDisplayType(item)}:item} folderType={isAllFolder?getItemDisplayType(item):activeFolder?.folderType} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setModal("item");}} onDelete={delItem}/>)}</div>)}
+        </div>}
+      {toast&&<div style={{position:"fixed",bottom:40,left:"50%",transform:"translateX(-50%)",background:toast.type==="err"?"#7F1D1D":"#14532D",border:`1px solid ${toast.type==="err"?"#F87171":"#34D399"}44`,borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:600,color:toast.type==="err"?"#FCA5A5":"#6EE7B7",zIndex:999,animation:"fadeIn .2s ease",whiteSpace:"nowrap"}}>{toast.msg}</div>}
+    </div>
+    {modal==="folder"&&<FolderModal folder={editTarget&&editTarget.folderType!=="all"?editTarget:null} T={T} onClose={()=>{setModal(null);setEditTarget(null);}} onDelete={editTarget&&editTarget.folderType!=="all"?()=>delFolder(editTarget):null} onSave={(fd)=>{const isNew=!editTarget;const folder=isNew?{id:uid(),...fd,pin:null}:{...editTarget,...fd,pin:fd.locked?editTarget.pin:null};persist({...data,folders:isNew?[...data.folders,folder]:data.folders.map(f=>f.id===folder.id?folder:f)});setModal(null);setEditTarget(null);if(fd.locked&&(isNew||!editTarget?.locked)){setPinTarget(folder);setModal("pin-set");}}}/>}
+    {modal==="item"&&<ItemModal item={editTarget} folder={activeFolder||data.folders.find(f=>f.id==="all")} folders={data.folders} T={T} onImgError={msg=>showToast(msg,"err")} onClose={()=>{setModal(null);setEditTarget(null);}} onSave={(item)=>{persist({...data,items:editTarget?data.items.map(i=>i.id===item.id?item:i):[item,...data.items]});setModal(null);setEditTarget(null);}}/>}
+    {modal==="pin-unlock"&&pinTarget&&<PinModal title={`🔒 ${pinTarget.name}`} mode="enter" T={T} onCancel={()=>{setModal(null);setPinTarget(null);}} onConfirm={(pin)=>{if(pin===pinTarget.pin){setUnlockedFolders(u=>({...u,[pinTarget.id]:true}));setActiveFolderId(pinTarget.id);setView("items");setModal(null);setPinTarget(null);}else{setModal(null);setPinTarget(null);showToast("PIN이 틀렸어요","err");}}}/>}
+    {modal==="pin-set"&&pinTarget&&<PinModal title="PIN 설정" mode="set" T={T} onCancel={()=>{setModal(null);setPinTarget(null);}} onConfirm={(pin)=>{persist({...data,folders:data.folders.map(f=>f.id===pinTarget.id?{...f,pin}:f)});setUnlockedFolders(u=>({...u,[pinTarget.id]:true}));setModal(null);setPinTarget(null);showToast("잠금 폴더 설정 완료 🔒");}}/>}
+    {detailItem&&<DetailView item={detailItem} folderType={getItemDisplayType(detailItem)} T={T} onClose={()=>setDetailItem(null)} onEdit={i=>{setDetailItem(null);setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}}/>}
+    {confirmCfg&&<ConfirmDialog {...confirmCfg} T={T} onCancel={()=>setConfirmCfg(null)}/>}
+  </>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body>
+</html>
