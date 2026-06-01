@@ -149,7 +149,7 @@ function DetailView({item,folderType,onClose,onEdit,T}){
   const infoRows=[...(item.albumKind?[{label:"앨범 종류",val:item.albumKind}]:[]),...ft.itemFields.filter(f=>f.key!=="albumKind").map(f=>({label:f.label,val:item[f.key]})).filter(r=>r.val)];
   return <div style={{position:"fixed",inset:0,background:T.bg,zIndex:400,overflowY:"auto",animation:"fadeIn .2s ease",maxWidth:480,margin:"0 auto"}}>
     <div style={{position:"fixed",inset:0,pointerEvents:"none",maxWidth:480,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, ${ft.color}33, ${ft.color}10 45%, transparent 70%)`}}/>
-    <div style={{position:"sticky",top:0,zIndex:10,background:T.headerBg,backdropFilter:"blur(20px)",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${T.border}`}}>
+    <div style={{position:"sticky",top:0,zIndex:10,background:T.headerBg,backdropFilter:"blur(20px)",padding:"calc(env(safe-area-inset-top, 0px) + 14px) 20px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${T.border}`}}>
       <button onClick={onClose} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"6px 12px",fontSize:13,cursor:"pointer"}}>← 닫기</button>
       <button onClick={()=>onEdit(item)} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"6px 12px",fontSize:13,cursor:"pointer",fontWeight:600}}>✏️ 수정</button></div>
     <div style={{padding:"24px 20px 60px",position:"relative",zIndex:1,display:"flex",flexDirection:"column",gap:18}}>
@@ -335,7 +335,7 @@ function App(){
       input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=color]::-webkit-color-swatch-wrapper{padding:0}input[type=color]::-webkit-color-swatch{border:none;border-radius:6px}`}</style>
     <div style={{minHeight:"100vh",background:T.bg,color:T.text,maxWidth:480,margin:"0 auto",position:"relative",transition:"background .4s"}}>
       <div style={{position:"fixed",inset:0,pointerEvents:"none",transition:"background .6s ease",maxWidth:480,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, ${bgColor}33, ${bgColor}10 45%, transparent 70%)`}}/>
-      <div style={{position:"sticky",top:0,zIndex:100,background:T.headerBg,backdropFilter:"blur(20px)",padding:"16px 20px 12px",borderBottom:`1px solid ${T.border}`}}>
+      <div style={{position:"sticky",top:0,zIndex:100,background:T.headerBg,backdropFilter:"blur(20px)",padding:"calc(env(safe-area-inset-top, 0px) + 14px) 20px 12px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:`linear-gradient(90deg, transparent, ${bgColor}88, transparent)`,transition:"background .6s ease"}}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:view==="settings"?0:12}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
