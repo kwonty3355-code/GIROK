@@ -308,7 +308,8 @@ function DiaryCard({entry,onOpen,onEdit,onDelete,T}){
   return <div onClick={()=>onOpen(entry)} style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer",display:"flex",gap:12,alignItems:"center",animation:"fadeUp .25s ease both",position:"relative"}}>
     <DiaryThumb coverId={entry.coverId} mood={mood}/>
     <div style={{flex:1,minWidth:0}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+        {entry.coverId&&mood&&<span style={{fontSize:18,flexShrink:0}}>{mood.e}</span>}
         <span style={{fontFamily:"'Noto Serif KR',serif",fontSize:15,fontWeight:700,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{entry.title||"무제"}</span>
       </div>
       <div style={{fontSize:11,color:"#A78BFA",fontWeight:600,marginBottom:4}}>{fmtDiaryDate(entry.dateKey)}{mood?` · ${mood.label}`:""}</div>
@@ -411,11 +412,11 @@ function App(){
   const persist=(nd)=>{setData(nd);saveData(nd);};
   const updateSettings=(s)=>{setSettings(s);saveSettings(s);};
   const showToast=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2500);};
-  if(!data||booting)return <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden"}}>
-    <div style={{position:"fixed",inset:0,pointerEvents:"none",maxWidth:480,margin:"0 auto",background:`radial-gradient(circle 500px at 50% 40%, #7C3AED44, #7C3AED11 45%, transparent 70%)`}}/>
-    <div style={{fontSize:72,animation:"bootPop .7s cubic-bezier(.34,1.4,.5,1) both",filter:"drop-shadow(0 8px 24px #7C3AED66)"}}>📖</div>
-    <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:30,fontWeight:700,letterSpacing:"0.1em",color:T.text,animation:"fadeIn .6s ease .25s both"}}>GIROK</div>
-    <div style={{display:"flex",gap:6,animation:"fadeIn .6s ease .45s both"}}>{[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:"#C084FC",animation:`bootDot 1s ease ${i*0.15}s infinite`}}/>)}</div>
+  if(!data||booting)return <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:isWide?32:20,margin:"0 auto",position:"relative",overflow:"hidden"}}>
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",background:`radial-gradient(circle ${isWide?800:500}px at 50% 40%, #7C3AED44, #7C3AED11 45%, transparent 70%)`}}/>
+    <div style={{fontSize:isWide?130:72,animation:"bootPop .7s cubic-bezier(.34,1.4,.5,1) both",filter:`drop-shadow(0 8px 24px #7C3AED66)`}}>📖</div>
+    <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:isWide?54:30,fontWeight:700,letterSpacing:"0.1em",color:T.text,animation:"fadeIn .6s ease .25s both"}}>GIROK</div>
+    <div style={{display:"flex",gap:isWide?10:6,animation:"fadeIn .6s ease .45s both"}}>{[0,1,2].map(i=><div key={i} style={{width:isWide?11:7,height:isWide?11:7,borderRadius:"50%",background:"#C084FC",animation:`bootDot 1s ease ${i*0.15}s infinite`}}/>)}</div>
   </div>;
 
   const activeFolder=data.folders.find(f=>f.id===activeFolderId);
