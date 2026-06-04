@@ -297,10 +297,16 @@ function FolderCard({folder,itemCount,streak,onClick,T}){
 }
 
 // ── DIARY COMPONENTS ──
+function DiaryThumb({coverId,mood,size=44}){
+  const [url,setUrl]=useState(null);
+  useEffect(()=>{let ok=true;if(coverId)getImgUrl(coverId).then(u=>{if(ok)setUrl(u);});else setUrl(null);return()=>{ok=false;};},[coverId]);
+  if(url)return <img src={url} style={{width:size,height:size,borderRadius:10,objectFit:"cover",flexShrink:0,border:"1px solid rgba(167,139,250,0.3)"}}/>;
+  return <div style={{fontSize:size*0.68,flexShrink:0,width:size,textAlign:"center"}}>{mood?mood.e:"📝"}</div>;
+}
 function DiaryCard({entry,onOpen,onEdit,onDelete,T}){
   const mood=MOODS.find(m=>m.label===entry.mood);
   return <div onClick={()=>onOpen(entry)} style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer",display:"flex",gap:12,alignItems:"center",animation:"fadeUp .25s ease both",position:"relative"}}>
-    <div style={{fontSize:30,flexShrink:0}}>{mood?mood.e:"📝"}</div>
+    <DiaryThumb coverId={entry.coverId} mood={mood}/>
     <div style={{flex:1,minWidth:0}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
         <span style={{fontFamily:"'Noto Serif KR',serif",fontSize:15,fontWeight:700,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{entry.title||"무제"}</span>
@@ -312,9 +318,10 @@ function DiaryCard({entry,onOpen,onEdit,onDelete,T}){
   </div>;
 }
 
-function DiaryModal({entry,folderId,onSave,onClose,T}){
+function DiaryModal({entry,folderId,onSave,onClose,onImgError,T}){
   const [title,setTitle]=useState(entry?.title||"");
   const [mood,setMood]=useState(entry?.mood||"보통");
+  const [coverId,setCoverId]=useState(entry?.coverId||null);
   const [notes,setNotes]=useState(entry?.notes||"");
   const lbl={fontSize:11,fontWeight:600,color:T.muted,letterSpacing:"0.06em",marginBottom:8,display:"block"};
   const inp={width:"100%",background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:12,color:T.text,padding:"11px 14px",fontSize:14,outline:"none",boxSizing:"border-box"};
@@ -327,7 +334,8 @@ function DiaryModal({entry,folderId,onSave,onClose,T}){
       <div><label style={lbl}>제목</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="오늘의 제목" style={inp}/></div>
       <div><label style={lbl}>오늘의 기분</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{MOODS.map(m=><button key={m.label} onClick={()=>setMood(m.label)} style={{padding:"8px 10px",borderRadius:12,border:`1px solid ${mood===m.label?"#A78BFA":T.border}`,background:mood===m.label?"#A78BFA22":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:52}}><span style={{fontSize:22}}>{m.e}</span><span style={{fontSize:10,color:mood===m.label?"#A78BFA":T.dim2,fontWeight:600}}>{m.label}</span></button>)}</div></div>
       <div><label style={lbl}>오늘 하루</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="오늘 있었던 일, 느낀 점을 자유롭게 적어보세요..." style={{...inp,resize:"vertical",minHeight:260,lineHeight:1.7}}/></div>
-      <button onClick={()=>{onSave({id:entry?.id||uid(),folderId:entry?.folderId||folderId,dateKey,title:title.trim(),mood,notes,createdAt:entry?.createdAt||new Date().toISOString()});}} style={{padding:"14px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#7C3AED,#A78BFA)",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>{entry?"수정 완료":"오늘 일기 저장"}</button>
+      <div><label style={lbl}>오늘의 사진 <span style={{color:T.dim,fontWeight:400}}>(1장, 선택)</span></label><div style={{width:"45%"}}><CoverUpload imgId={coverId} ratio="1/1" onChange={setCoverId} onError={onImgError} T={T}/></div></div>
+      <button onClick={()=>{onSave({id:entry?.id||uid(),folderId:entry?.folderId||folderId,dateKey,title:title.trim(),mood,notes,coverId,createdAt:entry?.createdAt||new Date().toISOString()});}} style={{padding:"14px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#7C3AED,#A78BFA)",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>{entry?"수정 완료":"오늘 일기 저장"}</button>
     </div></div>;
 }
 
@@ -344,8 +352,15 @@ function DiaryDetail({entry,onClose,onEdit,T}){
         <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:24,fontWeight:700,color:T.text,marginBottom:8}}>{entry.title||"무제"}</div>
         <div style={{fontSize:13,color:"#A78BFA",fontWeight:600}}>{fmtDiaryDate(entry.dateKey)}{mood?` · ${mood.label}`:""}</div>
       </div>
+      {entry.coverId&&<div style={{maxWidth:380,width:"100%",margin:"0 auto"}}><DiaryPhoto coverId={entry.coverId}/></div>}
       {entry.notes&&<div style={{background:T.cardBg,borderRadius:16,border:`1px solid ${T.border}`,padding:"20px"}}><div style={{fontSize:15,color:T.text,lineHeight:1.9,whiteSpace:"pre-wrap"}}>{entry.notes}</div></div>}
     </div></div>;
+}
+function DiaryPhoto({coverId}){
+  const [url,setUrl]=useState(null);
+  useEffect(()=>{let ok=true;getImgUrl(coverId).then(u=>{if(ok)setUrl(u);});return()=>{ok=false;};},[coverId]);
+  if(!url)return null;
+  return <img src={url} style={{width:"100%",aspectRatio:"1/1",objectFit:"cover",borderRadius:16,border:"1px solid rgba(167,139,250,0.3)",boxShadow:"0 8px 30px rgba(167,139,250,0.2)"}}/>;
 }
 
 function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,T}){
@@ -368,7 +383,7 @@ function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,T}){
     {stats.byType.length>0&&<div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px",display:"flex",flexDirection:"column",gap:10}}>{stats.byType.map(t=><div key={t.key} style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16,width:24}}>{t.emoji}</span><span style={{fontSize:13,color:T.text,width:44}}>{t.label}</span><div style={{flex:1,height:8,background:T.inputBg,borderRadius:4,overflow:"hidden"}}><div style={{width:`${t.pct}%`,height:"100%",background:t.color,borderRadius:4,transition:"width .4s"}}/></div><span style={{fontSize:12,color:T.dim2,width:28,textAlign:"right"}}>{t.count}</span></div>)}</div>}
     <div style={sl}>위험</div>
     <div onClick={onWipe} style={{cursor:"pointer"}}><Row icon="⚠️" title="모든 데이터 삭제" desc="복구할 수 없어요" right={<span style={{color:"#F87171",fontSize:18}}>›</span>}/></div>
-    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v2.0</div></div>;
+    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v2.1</div></div>;
 }
 
 function App(){
@@ -425,7 +440,7 @@ function App(){
   const filteredItems=activeFolder?itemsInFolder(activeFolder).filter(i=>!search||matchItem(i,search.toLowerCase())).sort(sortFn):[];
   const globalResults=globalSearch.trim()?data.items.filter(i=>{const dt=data.folders.find(f=>f.id===i.folderId)?.folderType;return dt!=="diary"&&matchItem(i,globalSearch.toLowerCase());}).sort(sortFn):[];
 
-  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"2.0"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);showToast("백업 완료 ✅");setModal(null);};
+  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"2.1"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);showToast("백업 완료 ✅");setModal(null);};
   const handleImport=(e)=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=async(ev)=>{try{const p=JSON.parse(ev.target.result);const d=p.data||p;if(!d.folders||!d.items)throw new Error();if(p.imgs){for(const[k,durl]of Object.entries(p.imgs)){try{await idbPut(k,durl);}catch{}}}if(p.settings)updateSettings(p.settings);persist(d);showToast("복원 완료 🎉");setModal(null);}catch{showToast("올바른 백업 파일이 아니에요","err");}};r.readAsText(file);};
   const askConfirm=(cfg)=>setConfirmCfg(cfg);
   const handleWipe=()=>askConfirm({title:"모든 데이터 삭제",message:"모든 폴더와 기록, 사진이 사라져요.\n복구할 수 없어요. 정말 삭제할까요?",confirmText:"전체 삭제",onConfirm:async()=>{const all=await idbAll();for(const k of Object.keys(all))await idbDelete(k);localStorage.removeItem(SK);persist(DEFAULT_DATA);showToast("전체 삭제 완료");setView("folders");setConfirmCfg(null);}});
@@ -448,8 +463,8 @@ function App(){
       .screen-anim{animation:screenIn .32s cubic-bezier(.22,1,.36,1) both}
       ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:${T.surface2};border-radius:2px}
       input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=color]::-webkit-color-swatch-wrapper{padding:0}input[type=color]::-webkit-color-swatch{border:none;border-radius:6px}`}</style>
-    <div style={{minHeight:"100vh",background:T.bg,color:T.text,maxWidth:isWide?960:480,margin:"0 auto",position:"relative",transition:"background .4s"}}>
-      <div style={{position:"fixed",inset:0,pointerEvents:"none",transition:"background .6s ease",maxWidth:isWide?960:480,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, ${bgColor}33, ${bgColor}10 45%, transparent 70%)`}}/>
+    <div style={{minHeight:"100vh",background:T.bg,color:T.text,maxWidth:isWide?"100%":480,width:isWide?"100%":undefined,margin:"0 auto",position:"relative",transition:"background .4s",padding:isWide?"0 24px":0,boxSizing:"border-box"}}>
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",transition:"background .6s ease",background:`radial-gradient(circle 700px at 50% 8%, ${bgColor}2e, ${bgColor}0d 45%, transparent 70%)`}}/>
       <div style={{position:"sticky",top:0,zIndex:100,background:T.headerBg,backdropFilter:"blur(20px)",padding:"calc(env(safe-area-inset-top, 0px) + 14px) 20px 12px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:`linear-gradient(90deg, transparent, ${bgColor}88, transparent)`,transition:"background .6s ease"}}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:view==="settings"?0:12}}>
@@ -468,9 +483,9 @@ function App(){
         ?<div key="settings" className="screen-anim"><SettingsScreen settings={settings} onChange={updateSettings} onExport={handleExport} onImport={handleImport} onWipe={handleWipe} stats={stats} T={T}/></div>
         :<div key={view+(activeFolderId||"")} className="screen-anim" style={{padding:"16px 16px 48px",position:"relative",zIndex:1}}>
           {view==="folders"&&globalSearch.trim()&&(<div style={{marginBottom:20}}><div style={{fontSize:12,color:T.dim2,marginBottom:10,fontWeight:600}}>검색 결과 {globalResults.length}개</div>{globalResults.length===0?<div style={{textAlign:"center",padding:"30px",color:T.dim,fontSize:13}}>결과 없음</div>:<div style={{display:"flex",flexDirection:"column",gap:12}}>{globalResults.map(item=><ItemCard key={item.id} item={{...item,_displayType:getItemDisplayType(item)}} folderType={getItemDisplayType(item)} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}} onDelete={delItem}/>)}</div>}</div>)}
-          {view==="folders"&&!globalSearch.trim()&&(<div style={{display:"grid",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(220px, 1fr))":"1fr 1fr",gap:12}}>{data.folders.map(folder=><FolderCard key={folder.id} folder={folder} itemCount={folderItemCount(folder)} streak={folderStreak(folder)} T={T} onClick={()=>openFolder(folder)}/>)}</div>)}
-          {view==="items"&&isDiaryFolder(activeFolder)&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📔</div><div style={{fontSize:15,color:T.dim2}}>{search?"검색 결과가 없어요":"아직 일기가 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 오늘 일기를 적어보세요!</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10}}>{[...filteredItems].sort((a,b)=>b.dateKey.localeCompare(a.dateKey)).map(entry=><DiaryCard key={entry.id} entry={entry} T={T} onOpen={setDiaryDetail} onEdit={e=>{setEditTarget(e);setModal("diary");}} onDelete={delItem}/>)}</div>)}
-          {view==="items"&&!isDiaryFolder(activeFolder)&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📭</div><div style={{fontSize:15,color:T.dim2}}>{search?"검색 결과가 없어요":"아직 기록이 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 추가해보세요!</div></div>:<div style={{display:isWide?"grid":"flex",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(320px, 1fr))":undefined,flexDirection:isWide?undefined:"column",gap:14}}>{filteredItems.map(item=><ItemCard key={item.id} item={isAllFolder?{...item,_displayType:getItemDisplayType(item)}:item} folderType={isAllFolder?getItemDisplayType(item):activeFolder?.folderType} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setModal("item");}} onDelete={delItem}/>)}</div>)}
+          {view==="folders"&&!globalSearch.trim()&&(<div style={{display:"grid",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(260px, 1fr))":"1fr 1fr",gap:isWide?16:12}}>{data.folders.map(folder=><FolderCard key={folder.id} folder={folder} itemCount={folderItemCount(folder)} streak={folderStreak(folder)} T={T} onClick={()=>openFolder(folder)}/>)}</div>)}
+          {view==="items"&&isDiaryFolder(activeFolder)&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📔</div><div style={{fontSize:15,color:T.dim2}}>{search?"검색 결과가 없어요":"아직 일기가 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 오늘 일기를 적어보세요!</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:isWide?720:undefined,margin:isWide?"0 auto":undefined}}>{[...filteredItems].sort((a,b)=>b.dateKey.localeCompare(a.dateKey)).map(entry=><DiaryCard key={entry.id} entry={entry} T={T} onOpen={setDiaryDetail} onEdit={e=>{setEditTarget(e);setModal("diary");}} onDelete={delItem}/>)}</div>)}
+          {view==="items"&&!isDiaryFolder(activeFolder)&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📭</div><div style={{fontSize:15,color:T.dim2}}>{search?"검색 결과가 없어요":"아직 기록이 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 추가해보세요!</div></div>:<div style={{display:isWide?"grid":"flex",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(400px, 1fr))":undefined,flexDirection:isWide?undefined:"column",gap:16}}>{filteredItems.map(item=><ItemCard key={item.id} item={isAllFolder?{...item,_displayType:getItemDisplayType(item)}:item} folderType={isAllFolder?getItemDisplayType(item):activeFolder?.folderType} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setModal("item");}} onDelete={delItem}/>)}</div>)}
         </div>}
       {toast&&<div style={{position:"fixed",bottom:40,left:"50%",transform:"translateX(-50%)",background:toast.type==="err"?"#7F1D1D":"#14532D",border:`1px solid ${toast.type==="err"?"#F87171":"#34D399"}44`,borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:600,color:toast.type==="err"?"#FCA5A5":"#6EE7B7",zIndex:999,animation:"fadeIn .2s ease",whiteSpace:"nowrap"}}>{toast.msg}</div>}
     </div>
@@ -478,7 +493,7 @@ function App(){
     {modal==="item"&&<ItemModal item={editTarget} folder={activeFolder||data.folders.find(f=>f.id==="all")} folders={data.folders} T={T} onImgError={msg=>showToast(msg,"err")} onClose={()=>{setModal(null);setEditTarget(null);}} onSave={(item)=>{persist({...data,items:editTarget?data.items.map(i=>i.id===item.id?item:i):[item,...data.items]});setModal(null);setEditTarget(null);}}/>}
     {modal==="pin-unlock"&&pinTarget&&<PinModal title={`🔒 ${pinTarget.name}`} mode="enter" T={T} onCancel={()=>{setModal(null);setPinTarget(null);}} onConfirm={(pin)=>{if(pin===pinTarget.pin){setUnlockedFolders(u=>({...u,[pinTarget.id]:true}));setActiveFolderId(pinTarget.id);setView("items");setModal(null);setPinTarget(null);}else{setModal(null);setPinTarget(null);showToast("PIN이 틀렸어요","err");}}}/>}
     {modal==="pin-set"&&pinTarget&&<PinModal title="PIN 설정" mode="set" T={T} onCancel={()=>{setModal(null);setPinTarget(null);}} onConfirm={(pin)=>{persist({...data,folders:data.folders.map(f=>f.id===pinTarget.id?{...f,pin}:f)});setUnlockedFolders(u=>({...u,[pinTarget.id]:true}));setModal(null);setPinTarget(null);showToast("잠금 폴더 설정 완료 🔒");}}/>}
-    {modal==="diary"&&<DiaryModal entry={editTarget} folderId={activeFolderId} T={T} onClose={()=>{setModal(null);setEditTarget(null);}} onSave={(entry)=>{persist({...data,items:editTarget?data.items.map(i=>i.id===entry.id?entry:i):[entry,...data.items]});setModal(null);setEditTarget(null);showToast(editTarget?"일기 수정 완료":"오늘 일기 저장 🔥");}}/>}
+    {modal==="diary"&&<DiaryModal entry={editTarget} folderId={activeFolderId} T={T} onImgError={msg=>showToast(msg,"err")} onClose={()=>{setModal(null);setEditTarget(null);}} onSave={(entry)=>{persist({...data,items:editTarget?data.items.map(i=>i.id===entry.id?entry:i):[entry,...data.items]});setModal(null);setEditTarget(null);showToast(editTarget?"일기 수정 완료":"오늘 일기 저장 🔥");}}/>}
     {detailItem&&<DetailView item={detailItem} folderType={getItemDisplayType(detailItem)} T={T} onClose={()=>setDetailItem(null)} onEdit={i=>{setDetailItem(null);setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}}/>}
     {diaryDetail&&<DiaryDetail entry={diaryDetail} T={T} onClose={()=>setDiaryDetail(null)} onEdit={e=>{setDiaryDetail(null);setEditTarget(e);setModal("diary");}}/>}
     {confirmCfg&&<ConfirmDialog {...confirmCfg} T={T} onCancel={()=>setConfirmCfg(null)}/>}
