@@ -88,7 +88,7 @@ const ALL_STATUS_LABELS=(()=>{const m={};Object.values(STATUS_SETS).forEach(set=
 const SK="mtr-v7", SETTINGS_SK="mtr-v7-settings";
 function loadData(){try{return JSON.parse(localStorage.getItem(SK)||"null");}catch{return null;}}
 function saveData(d){localStorage.setItem(SK,JSON.stringify(d));}
-function loadSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_SK)||"null")||{theme:"dark",sortBy:"newest",confirmDelete:true};}catch{return{theme:"dark",sortBy:"newest",confirmDelete:true};}}
+function loadSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_SK)||"null")||{theme:"dark",sortBy:"newest",confirmDelete:true,lastBackup:null};}catch{return{theme:"dark",sortBy:"newest",confirmDelete:true,lastBackup:null};}}
 function saveSettings(s){localStorage.setItem(SETTINGS_SK,JSON.stringify(s));}
 
 // ── IndexedDB image store (big storage) ──
@@ -362,6 +362,7 @@ function DiaryModal({entry,folderId,onSave,onClose,onImgError,T}){
       <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,display:"flex",alignItems:"center",gap:8,color:T.text}}><span style={{fontSize:22}}>📔</span>{entry?"일기 수정":"오늘의 일기"}</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
       <div style={{fontSize:13,color:"#A78BFA",fontWeight:600}}>{fmtDiaryDate(dateKey)}</div>
+      <div style={{fontSize:11,color:T.dim2,marginTop:-8,lineHeight:1.5}}>💡 새벽 4시 전까지는 전날 일기로 기록돼요 (밤늦게 써도 괜찮아요)</div>
       <div><label style={lbl}>제목</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="오늘의 제목" style={inp}/></div>
       <div><label style={lbl}>오늘의 기분</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{MOODS.map(m=><button key={m.label} onClick={()=>setMood(m.label)} style={{padding:"8px 10px",borderRadius:12,border:`1px solid ${mood===m.label?"#A78BFA":T.border}`,background:mood===m.label?"#A78BFA22":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:52}}><span style={{fontSize:22}}>{m.e}</span><span style={{fontSize:10,color:mood===m.label?"#A78BFA":T.dim2,fontWeight:600}}>{m.label}</span></button>)}</div></div>
       <div><label style={lbl}>오늘 하루</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="오늘 있었던 일, 느낀 점을 자유롭게 적어보세요..." style={{...inp,resize:"vertical",minHeight:280,fontSize:16,lineHeight:1.9,padding:"16px 16px"}}/></div>
@@ -410,8 +411,9 @@ function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,o
     <Row icon={settings.theme==="dark"?"🌙":"☀️"} title="테마" desc={settings.theme==="dark"?"다크 모드":"라이트 모드"} right={<div style={{display:"flex",gap:4,background:T.inputBg,borderRadius:10,padding:3}}>{[["dark","🌙"],["light","☀️"]].map(([k,e])=><button key={k} onClick={()=>onChange({...settings,theme:k})} style={{padding:"6px 12px",borderRadius:8,border:"none",background:settings.theme===k?"#7C3AED":"transparent",color:settings.theme===k?"#fff":T.dim2,fontSize:14,cursor:"pointer"}}>{e}</button>)}</div>}/>
     <Row icon="🔃" title="기본 정렬" desc="기록 표시 순서" right={<select value={settings.sortBy} onChange={e=>onChange({...settings,sortBy:e.target.value})} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,padding:"6px 10px",fontSize:12,outline:"none",cursor:"pointer"}}><option value="newest">최신순</option><option value="oldest">오래된순</option><option value="rating">평점순</option><option value="title">제목순</option></select>}/>
     <div style={sl}>데이터</div>
+    {(()=>{const lb=settings.lastBackup;const days=lb?Math.floor((Date.now()-new Date(lb).getTime())/86400000):null;const stale=days===null||days>=30;if(!stale)return null;return <div style={{background:"rgba(251,191,36,0.1)",border:"1px solid #FBBF2433",borderRadius:12,padding:"12px 14px",display:"flex",gap:10,alignItems:"center"}}><span style={{fontSize:18}}>⚠️</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"#FBBF24"}}>백업한 지 {days===null?"오래됐어요":`${days}일 됐어요`}</div><div style={{fontSize:11,color:T.dim2,marginTop:2}}>가끔 백업해두면 기기를 바꿔도 안전해요</div></div></div>;})()}
     <Row icon="🗑️" title="삭제 시 확인" desc="기록 삭제 전 물어보기" right={<div onClick={()=>onChange({...settings,confirmDelete:!settings.confirmDelete})} style={{width:46,height:26,borderRadius:13,background:settings.confirmDelete?"#7C3AED":T.surface2,position:"relative",cursor:"pointer"}}><div style={{position:"absolute",top:3,left:settings.confirmDelete?23:3,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/></div>}/>
-    <div onClick={onExport} style={{cursor:"pointer"}}><Row icon="📤" title="백업 내보내기" desc="모든 데이터(사진 포함)를 파일로" right={<span style={{color:T.dim,fontSize:18}}>›</span>}/></div>
+    <div onClick={onExport} style={{cursor:"pointer"}}><Row icon="📤" title="백업 내보내기" desc={settings.lastBackup?`마지막 백업: ${new Date(settings.lastBackup).toLocaleDateString("ko-KR")}`:"모든 데이터(사진 포함)를 파일로"} right={<span style={{color:T.dim,fontSize:18}}>›</span>}/></div>
     <label style={{cursor:"pointer"}}><Row icon="📥" title="백업 불러오기" desc="파일에서 복원" right={<span style={{color:T.dim,fontSize:18}}>›</span>}/><input type="file" accept=".json" onChange={onImport} style={{display:"none"}}/></label>
     <div style={sl}>통계</div>
     <div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
@@ -434,7 +436,7 @@ function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,o
     </div>}
     <div style={sl}>위험</div>
     <div onClick={onWipe} style={{cursor:"pointer"}}><Row icon="⚠️" title="모든 데이터 삭제" desc="복구할 수 없어요" right={<span style={{color:"#F87171",fontSize:18}}>›</span>}/></div>
-    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v2.3</div></div>;
+    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v2.4</div></div>;
 }
 
 function AuthScreen({onAuthed,onSkip,T}){
@@ -519,17 +521,20 @@ function App(){
     pulledRef.current=true;
     setSyncing(true);
     const remote=await cloudPull(user.id);
-    if(remote&&remote.data){
-      // 이미지 복원
+    const localMod=data._lastMod?new Date(data._lastMod).getTime():0;
+    const remoteMod=remote&&remote.updated_at?new Date(remote.updated_at).getTime():0;
+    if(remote&&remote.data&&remoteMod>=localMod){
+      // 클라우드가 로컬보다 최신이면 받아옴
       if(remote.images){for(const[k,v]of Object.entries(remote.images)){try{await idbPut(k,v);}catch(e){}}}
       const rd=remote.data;
       if(!rd.folders.find(f=>f.id==="all"))rd.folders.unshift({...DEFAULT_DATA.folders[0]});
       setData(rd);saveData(rd);
       showToast("클라우드에서 불러왔어요 ☁️");
     }else{
-      // 클라우드가 비어있으면 현재 로컬 데이터를 올림
+      // 로컬이 더 최신이거나 클라우드가 비어있으면 로컬을 올림 (덮어쓰기 방지)
       const imgs=await idbAll();const imgObj={};for(const[k,v]of Object.entries(imgs)){imgObj[k]=(typeof v==="string")?v:await blobToDataUrl(v);}
       await cloudPush(user.id,data,imgObj);
+      if(remote&&remote.data)showToast("이 기기 기록이 더 최신이라 클라우드에 올렸어요 ☁️");
     }
     setSyncing(false);
   })();},[user]);
@@ -545,7 +550,7 @@ function App(){
     return()=>{if(pushTimer.current)clearTimeout(pushTimer.current);};
   },[data,user]);
   const isWide=winW>=900; // 데스크탑/넓은 화면
-  const persist=(nd)=>{setData(nd);saveData(nd);};
+  const persist=(nd)=>{nd._lastMod=new Date().toISOString();setData(nd);saveData(nd);};
   const updateSettings=(s)=>{setSettings(s);saveSettings(s);};
   const showToast=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2500);};
   if(!data||booting||!authChecked)return <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:isWide?32:20,margin:"0 auto",position:"relative",overflow:"hidden"}}>
@@ -556,7 +561,8 @@ function App(){
   </div>;
 
   // 로그인 안 됐고, 건너뛰기도 안 했으면 로그인 화면
-  if(!user&&!showAuth)return <AuthScreen T={T} onAuthed={u=>setUser(u)} onSkip={()=>setShowAuth(true)}/>;
+  // 로그인은 선택 — 강제하지 않음. 설정에서 원할 때 로그인.
+  if(showAuth)return <AuthScreen T={T} onAuthed={u=>{setUser(u);setShowAuth(false);}} onSkip={()=>setShowAuth(false)}/>;
 
   const activeFolder=data.folders.find(f=>f.id===activeFolderId);
   const isAllFolder=activeFolder?.folderType==="all";
@@ -586,8 +592,8 @@ function App(){
   const globalResults=globalSearch.trim()?data.items.filter(i=>{const dt=data.folders.find(f=>f.id===i.folderId)?.folderType;return dt!=="diary"&&matchItem(i,globalSearch.toLowerCase());}).sort(sortFn):[];
   const filterActive=filterType!=="all"||filterRating>0;
 
-  const handleLogout=async()=>{if(sb){try{await sb.auth.signOut();}catch(e){}}pulledRef.current=false;setUser(null);setShowAuth(true);setView("folders");showToast("로그아웃 됐어요");};
-  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"2.3"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);showToast("백업 완료 ✅");setModal(null);};
+  const handleLogout=async()=>{if(sb){try{await sb.auth.signOut();}catch(e){}}pulledRef.current=false;setUser(null);setShowAuth(false);setView("folders");showToast("로그아웃 됐어요 (이 기기에는 기록이 남아있어요)");};
+  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"2.4"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);updateSettings({...settings,lastBackup:new Date().toISOString()});showToast("백업 완료 ✅");setModal(null);};
   const handleImport=(e)=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=async(ev)=>{try{const p=JSON.parse(ev.target.result);const d=p.data||p;if(!d.folders||!d.items)throw new Error();if(p.imgs){for(const[k,durl]of Object.entries(p.imgs)){try{await idbPut(k,durl);}catch{}}}if(p.settings)updateSettings(p.settings);persist(d);showToast("복원 완료 🎉");setModal(null);}catch{showToast("올바른 백업 파일이 아니에요","err");}};r.readAsText(file);};
   const askConfirm=(cfg)=>setConfirmCfg(cfg);
   const handleWipe=()=>askConfirm({title:"모든 데이터 삭제",message:"모든 폴더와 기록, 사진이 사라져요.\n복구할 수 없어요. 정말 삭제할까요?",confirmText:"전체 삭제",onConfirm:async()=>{const all=await idbAll();for(const k of Object.keys(all))await idbDelete(k);localStorage.removeItem(SK);persist(DEFAULT_DATA);showToast("전체 삭제 완료");setView("folders");setConfirmCfg(null);}});
@@ -632,7 +638,7 @@ function App(){
         {view!=="settings"&&<input value={view==="folders"?globalSearch:search} onChange={e=>view==="folders"?setGlobalSearch(e.target.value):setSearch(e.target.value)} placeholder={view==="folders"?"제목, 가수, 상태 등 검색...":"이 폴더에서 검색..."} style={{width:"100%",background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.text,padding:"9px 14px",fontSize:13,outline:"none"}}/>}
       </div>
       {view==="settings"
-        ?<div key="settings" className="screen-anim"><SettingsScreen settings={settings} onChange={updateSettings} onExport={handleExport} onImport={handleImport} onWipe={handleWipe} stats={stats} user={user} onLogin={()=>{setShowAuth(false);}} onLogout={handleLogout} syncing={syncing} T={T}/></div>
+        ?<div key="settings" className="screen-anim"><SettingsScreen settings={settings} onChange={updateSettings} onExport={handleExport} onImport={handleImport} onWipe={handleWipe} stats={stats} user={user} onLogin={()=>{setShowAuth(true);}} onLogout={handleLogout} syncing={syncing} T={T}/></div>
         :<div key={view+(activeFolderId||"")} className="screen-anim" style={{padding:"16px 16px 48px",position:"relative",zIndex:1}}>
           {view==="folders"&&globalSearch.trim()&&(<div style={{marginBottom:20}}><div style={{fontSize:12,color:T.dim2,marginBottom:10,fontWeight:600}}>검색 결과 {globalResults.length}개</div>{globalResults.length===0?<div style={{textAlign:"center",padding:"30px",color:T.dim,fontSize:13}}>결과 없음</div>:<div style={{display:"flex",flexDirection:"column",gap:12}}>{globalResults.map(item=><ItemCard key={item.id} item={{...item,_displayType:getItemDisplayType(item)}} folderType={getItemDisplayType(item)} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}} onDelete={delItem}/>)}</div>}</div>)}
           {view==="folders"&&!globalSearch.trim()&&(<div style={{display:"grid",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(260px, 1fr))":"1fr 1fr",gap:isWide?16:12}}>{data.folders.map(folder=><FolderCard key={folder.id} folder={folder} itemCount={folderItemCount(folder)} streak={folderStreak(folder)} T={T} onClick={()=>openFolder(folder)}/>)}</div>)}
