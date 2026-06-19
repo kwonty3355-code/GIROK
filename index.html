@@ -430,32 +430,32 @@ function LedgerSubCard({sub,total,onOpen,onDelete,T}){
 function LedgerHome({ledgerFolder,subs,subTotal,fixedExpenses,accounts,accountBalance,onOpenSub,onAddSub,onDeleteSub,onManageFixed,onManageAccounts,wide,T}){
   const fixedTotal=fixedExpenses.reduce((s,f)=>s+(f.amount||0),0);
   const accs=accounts&&accounts.length?accounts:[];
-  const total=accountBalance(null);
+  const [sel,setSel]=useState("_all"); // "_all" 또는 계좌 id
+  const selAcc=accs.find(a=>a.id===sel);
+  const bal=accountBalance(sel==="_all"?null:sel);
+  const accent=sel==="_all"?LG:(selAcc?.color||LG);
+  const label=sel==="_all"?"총 잔액":selAcc?.name;
+  const sub2=sel==="_all"?"모든 계좌 합계":"이 계좌 잔액";
   return <div style={{display:"flex",flexDirection:"column",gap:14}}>
-    {/* 총 잔액 (큰 카드) */}
-    <div style={{background:`linear-gradient(135deg, ${LG}2b, ${LG}0a 60%, ${T.cardBg})`,border:`1px solid ${LG}44`,borderRadius:18,padding:wide?"28px 26px":"24px 22px"}}>
+    {/* 잔액 박스 (상단 큰 잔액 + 하단 계좌 칩) */}
+    <div style={{background:`linear-gradient(135deg, ${accent}2b, ${accent}0a 55%, ${T.cardBg})`,border:`1px solid ${accent}44`,borderRadius:18,padding:wide?"26px 26px 20px":"22px 22px 18px",transition:"background .4s ease,border-color .4s ease"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <div style={{fontSize:13,fontWeight:700,color:LG}}>총 잔액</div>
+        <div style={{display:"flex",alignItems:"center",gap:7,fontSize:13,fontWeight:700,color:accent}}>{sel!=="_all"&&<span style={{width:9,height:9,borderRadius:"50%",background:accent}}/>}{label}</div>
         <button onClick={onManageAccounts} style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${T.border}`,borderRadius:8,color:T.muted,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>계좌 관리</button>
       </div>
-      <div style={{fontSize:11,color:T.dim2,marginBottom:4}}>모든 계좌 합계</div>
-      <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:wide?40:34,fontWeight:700,color:total.balance>=0?T.text:"#F87171",letterSpacing:"-0.02em"}}>{wonFmt(total.balance)}</div>
-      <div style={{display:"flex",gap:16,marginTop:14}}>
-        <div><span style={{fontSize:11,color:T.dim2}}>수입 </span><span style={{fontSize:13,fontWeight:700,color:LG}}>{wonFmt(total.income)}</span></div>
-        <div><span style={{fontSize:11,color:T.dim2}}>지출 </span><span style={{fontSize:13,fontWeight:700,color:"#F87171"}}>{wonFmt(total.expense)}</span></div>
+      <div style={{fontSize:11,color:T.dim2,marginBottom:4}}>{sub2}</div>
+      <div key={sel} style={{fontFamily:"'Noto Serif KR',serif",fontSize:wide?40:34,fontWeight:700,color:bal.balance>=0?T.text:"#F87171",letterSpacing:"-0.02em",animation:"balPop .35s ease both"}}>{wonFmt(bal.balance)}</div>
+      <div style={{display:"flex",gap:16,marginTop:12}}>
+        <div><span style={{fontSize:11,color:T.dim2}}>수입 </span><span style={{fontSize:13,fontWeight:700,color:LG}}>{wonFmt(bal.income)}</span></div>
+        <div><span style={{fontSize:11,color:T.dim2}}>지출 </span><span style={{fontSize:13,fontWeight:700,color:"#F87171"}}>{wonFmt(bal.expense)}</span></div>
       </div>
+      {/* 계좌 칩 (박스 하단) */}
+      {accs.length>0&&<div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:18,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+        <button onClick={()=>setSel("_all")} style={{padding:"7px 13px",borderRadius:20,fontSize:12.5,fontWeight:700,cursor:"pointer",border:`1px solid ${sel==="_all"?LG:T.border}`,background:sel==="_all"?`${LG}22`:"transparent",color:sel==="_all"?LG:T.dim2,transition:"all .2s"}}>전체</button>
+        {accs.map(a=><button key={a.id} onClick={()=>setSel(a.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 13px",borderRadius:20,fontSize:12.5,fontWeight:700,cursor:"pointer",border:`1px solid ${sel===a.id?a.color:T.border}`,background:sel===a.id?`${a.color}22`:"transparent",color:sel===a.id?a.color:T.dim2,transition:"all .2s"}}><span style={{width:8,height:8,borderRadius:"50%",background:a.color}}/>{a.name}</button>)}
+      </div>}
     </div>
-    {/* 계좌별 잔액 */}
-    {accs.length>0&&<div>
-      <div style={{fontSize:12,fontWeight:700,color:T.muted,marginBottom:8}}>💳 계좌별 잔액</div>
-      <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:2}}>
-        {accs.map(a=>{const b=accountBalance(a.id);return <div key={a.id} onClick={onManageAccounts} style={{flexShrink:0,minWidth:130,background:`${a.color}12`,border:`1px solid ${a.color}33`,borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
-          <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:"50%",background:a.color,flexShrink:0}}/><span style={{fontSize:12,fontWeight:700,color:a.color,whiteSpace:"nowrap"}}>{a.name}</span></div>
-          <div style={{fontSize:15,fontWeight:700,color:b.balance>=0?T.text:"#F87171",marginTop:5,fontFamily:"'Noto Serif KR',serif"}}>{wonFmt(b.balance)}</div>
-        </div>;})}
-      </div>
-    </div>}
-    {accs.length===0&&<div onClick={onManageAccounts} style={{background:T.cardBg,border:`1px dashed ${T.borderStrong}`,borderRadius:12,padding:"14px",textAlign:"center",cursor:"pointer",color:T.dim2,fontSize:13}}>💳 계좌를 추가하면 계좌별로 관리할 수 있어요</div>}
+    {accs.length===0&&<div onClick={onManageAccounts} style={{background:T.cardBg,border:`1px dashed ${T.borderStrong}`,borderRadius:12,padding:"14px",textAlign:"center",cursor:"pointer",color:T.dim2,fontSize:13}}>💳 계좌를 추가하면 계좌별로 나눠서 관리할 수 있어요</div>}
     {/* 고정 지출 (작게) */}
     <div onClick={onManageFixed} style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
       <span style={{fontSize:16}}>🔄</span>
@@ -649,7 +649,7 @@ function AccountModal({accounts,onSave,onClose,T}){
     <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"93vh",overflowY:"auto",padding:"20px 20px 36px",display:"flex",flexDirection:"column",gap:14,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
       <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>💳 계좌 관리</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
-      <div style={{fontSize:12,color:T.dim2,lineHeight:1.6,background:`${LG}10`,borderRadius:10,padding:"10px 12px"}}>💡 계좌을 나누면 기록할 때 어느 계좌에서 나가는지 고를 수 있어요. (예: 생활비 계좌, 비상금 계좌)</div>
+      <div style={{fontSize:12,color:T.dim2,lineHeight:1.6,background:`${LG}10`,borderRadius:10,padding:"10px 12px"}}>💡 계좌를 나누면 기록할 때 어느 계좌에서 나가는지 고를 수 있어요. (예: 생활비 계좌, 비상금 계좌)</div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {list.length===0&&<div style={{textAlign:"center",padding:"16px",color:T.dim,fontSize:13}}>아직 계좌이 없어요. 아래에서 추가해보세요.</div>}
         {list.map(a=><div key={a.id} style={{display:"flex",alignItems:"center",gap:10,background:T.inputBg,borderRadius:10,padding:"10px 12px"}}>
@@ -773,14 +773,14 @@ function LedgerStats({sub,entries,customCats,onClose,wide,T}){
   </div>;
 }
 
-function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,onLogin,onLogout,syncing,T}){
+function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,onLogin,onLogout,syncing,syncFailed,onRetrySync,T}){
   const Row=({icon,title,desc,right})=>(<div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`}}><span style={{fontSize:20}}>{icon}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.text}}>{title}</div>{desc&&<div style={{fontSize:11,color:T.dim2,marginTop:2}}>{desc}</div>}</div>{right}</div>);
   const sl={fontSize:11,fontWeight:700,color:T.dim,letterSpacing:"0.08em",margin:"8px 4px 4px"};
   return <div style={{padding:"16px 16px 48px",position:"relative",zIndex:1,display:"flex",flexDirection:"column",gap:10}}>
     <div style={sl}>계정</div>
     {user
       ?<div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px",display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:20}}>☁️</span><div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</div><div style={{fontSize:11,color:syncing?"#FBBF24":"#34D399",marginTop:2}}>{syncing?"동기화 중...":"자동 동기화 켜짐 · 모든 기기에서 같은 기록"}</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:20}}>☁️</span><div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</div><div style={{fontSize:11,color:syncing?"#FBBF24":(syncFailed?"#F87171":"#34D399"),marginTop:2}}>{syncing?"동기화 중...":(syncFailed?"⚠️ 동기화 실패 — 인터넷 확인 후 다시 시도하세요":"자동 동기화 켜짐 · 모든 기기에서 같은 기록")}</div></div>{syncFailed&&!syncing&&<button onClick={onRetrySync} style={{flexShrink:0,background:"#F87171",border:"none",borderRadius:9,color:"#fff",padding:"7px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>다시 시도</button>}</div>
         <button onClick={onLogout} style={{padding:"10px",borderRadius:10,border:`1px solid ${T.border}`,background:T.inputBg,color:T.muted,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Noto Sans KR',sans-serif"}}>로그아웃</button>
       </div>
       :<div onClick={onLogin} style={{cursor:"pointer"}}><Row icon="☁️" title="로그인 / 가입" desc="모든 기기에서 같은 기록 보기" right={<span style={{color:"#C084FC",fontSize:18}}>›</span>}/></div>}
@@ -788,7 +788,7 @@ function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,o
     <Row icon={settings.theme==="dark"?"🌙":"☀️"} title="테마" desc={settings.theme==="dark"?"다크 모드":"라이트 모드"} right={<div style={{display:"flex",gap:4,background:T.inputBg,borderRadius:10,padding:3}}>{[["dark","🌙"],["light","☀️"]].map(([k,e])=><button key={k} onClick={()=>onChange({...settings,theme:k})} style={{padding:"6px 12px",borderRadius:8,border:"none",background:settings.theme===k?"#7C3AED":"transparent",color:settings.theme===k?"#fff":T.dim2,fontSize:14,cursor:"pointer"}}>{e}</button>)}</div>}/>
     <Row icon="🔃" title="기본 정렬" desc="기록 표시 순서" right={<select value={settings.sortBy} onChange={e=>onChange({...settings,sortBy:e.target.value})} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,padding:"6px 10px",fontSize:12,outline:"none",cursor:"pointer"}}><option value="newest">최신순</option><option value="oldest">오래된순</option><option value="rating">평점순</option><option value="title">제목순</option></select>}/>
     <div style={sl}>데이터</div>
-    {(()=>{const lb=settings.lastBackup;const days=lb?Math.floor((Date.now()-new Date(lb).getTime())/86400000):null;const stale=days===null||days>=30;if(!stale)return null;return <div style={{background:"rgba(251,191,36,0.1)",border:"1px solid #FBBF2433",borderRadius:12,padding:"12px 14px",display:"flex",gap:10,alignItems:"center"}}><span style={{fontSize:18}}>⚠️</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"#FBBF24"}}>백업한 지 {days===null?"오래됐어요":`${days}일 됐어요`}</div><div style={{fontSize:11,color:T.dim2,marginTop:2}}>가끔 백업해두면 기기를 바꿔도 안전해요</div></div></div>;})()}
+    {(()=>{if(user)return null;const lb=settings.lastBackup;const days=lb?Math.floor((Date.now()-new Date(lb).getTime())/86400000):null;const stale=days===null||days>=30;if(!stale)return null;return <div style={{background:"rgba(251,191,36,0.1)",border:"1px solid #FBBF2433",borderRadius:12,padding:"12px 14px",display:"flex",gap:10,alignItems:"center"}}><span style={{fontSize:18}}>⚠️</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"#FBBF24"}}>백업한 지 {days===null?"오래됐어요":`${days}일 됐어요`}</div><div style={{fontSize:11,color:T.dim2,marginTop:2}}>로그인하면 자동으로 클라우드에 저장돼요</div></div></div>;})()}
     <Row icon="🗑️" title="삭제 시 확인" desc="기록 삭제 전 물어보기" right={<div onClick={()=>onChange({...settings,confirmDelete:!settings.confirmDelete})} style={{width:46,height:26,borderRadius:13,background:settings.confirmDelete?"#7C3AED":T.surface2,position:"relative",cursor:"pointer"}}><div style={{position:"absolute",top:3,left:settings.confirmDelete?23:3,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/></div>}/>
     <div onClick={onExport} style={{cursor:"pointer"}}><Row icon="📤" title="백업 내보내기" desc={settings.lastBackup?`마지막 백업: ${new Date(settings.lastBackup).toLocaleDateString("ko-KR")}`:"모든 데이터(사진 포함)를 파일로"} right={<span style={{color:T.dim,fontSize:18}}>›</span>}/></div>
     <label style={{cursor:"pointer"}}><Row icon="📥" title="백업 불러오기" desc="파일에서 복원" right={<span style={{color:T.dim,fontSize:18}}>›</span>}/><input type="file" accept=".json" onChange={onImport} style={{display:"none"}}/></label>
@@ -813,7 +813,7 @@ function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,o
     </div>}
     <div style={sl}>위험</div>
     <div onClick={onWipe} style={{cursor:"pointer"}}><Row icon="⚠️" title="모든 데이터 삭제" desc="복구할 수 없어요" right={<span style={{color:"#F87171",fontSize:18}}>›</span>}/></div>
-    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v3.0</div></div>;
+    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v3.1</div></div>;
 }
 
 function AuthScreen({onAuthed,onSkip,T}){
@@ -864,6 +864,7 @@ function App(){
   const [authChecked,setAuthChecked]=useState(false);
   const [showAuth,setShowAuth]=useState(false);
   const [syncing,setSyncing]=useState(false);
+  const [syncFailed,setSyncFailed]=useState(false);
   const [settings,setSettings]=useState(loadSettings());
   const [view,setView]=useState("folders");
   const [activeFolderId,setActiveFolderId]=useState(null);
@@ -917,17 +918,39 @@ function App(){
     }
     setSyncing(false);
   })();},[user]);
-  // 데이터 바뀌면 클라우드로 자동 업로드 (2초 디바운스)
+  // 데이터 바뀌면 클라우드로 자동 업로드 (1.2초 디바운스 + 실패 시 재시도)
   const pushTimer=useRef(null);
+  const pendingPush=useRef(false);
+  const doPush=async()=>{
+    if(!user||!data)return false;
+    pendingPush.current=false;
+    setSyncing(true);
+    try{
+      const imgs=await idbAll();const imgObj={};for(const[k,v]of Object.entries(imgs)){imgObj[k]=(typeof v==="string")?v:await blobToDataUrl(v);}
+      let ok=await cloudPush(user.id,data,imgObj);
+      if(!ok){await new Promise(r=>setTimeout(r,1500));ok=await cloudPush(user.id,data,imgObj);} // 1회 재시도
+      setSyncing(false);
+      if(!ok){setSyncFailed(true);pendingPush.current=true;}
+      else setSyncFailed(false);
+      return ok;
+    }catch(e){setSyncing(false);setSyncFailed(true);pendingPush.current=true;return false;}
+  };
   useEffect(()=>{
     if(!user||!data||booting)return;
+    pendingPush.current=true;
     if(pushTimer.current)clearTimeout(pushTimer.current);
-    pushTimer.current=setTimeout(async()=>{
-      const imgs=await idbAll();const imgObj={};for(const[k,v]of Object.entries(imgs)){imgObj[k]=(typeof v==="string")?v:await blobToDataUrl(v);}
-      const ok=await cloudPush(user.id,data,imgObj);
-    },2000);
+    pushTimer.current=setTimeout(doPush,1200);
     return()=>{if(pushTimer.current)clearTimeout(pushTimer.current);};
   },[data,user]);
+  // 앱을 닫거나 백그라운드로 갈 때, 저장 안 된 변경이 있으면 즉시 저장
+  useEffect(()=>{
+    if(!user)return;
+    const flush=()=>{if(pendingPush.current){if(pushTimer.current)clearTimeout(pushTimer.current);doPush();}};
+    const onHide=()=>{if(document.visibilityState==="hidden")flush();};
+    document.addEventListener("visibilitychange",onHide);
+    window.addEventListener("pagehide",flush);
+    return()=>{document.removeEventListener("visibilitychange",onHide);window.removeEventListener("pagehide",flush);};
+  },[user,data]);
   const isWide=winW>=900; // 데스크탑/넓은 화면
   const persist=(nd)=>{nd._lastMod=new Date().toISOString();setData(nd);saveData(nd);};
   const updateSettings=(s)=>{setSettings(s);saveSettings(s);};
@@ -979,12 +1002,12 @@ function App(){
   const filterActive=filterType!=="all"||filterRating>0;
 
   const handleLogout=async()=>{if(sb){try{await sb.auth.signOut();}catch(e){}}pulledRef.current=false;setUser(null);setShowAuth(false);setView("folders");showToast("로그아웃 됐어요 (이 기기에는 기록이 남아있어요)");};
-  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"3.0"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);updateSettings({...settings,lastBackup:new Date().toISOString()});showToast("백업 완료 ✅");setModal(null);};
+  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"3.1"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);updateSettings({...settings,lastBackup:new Date().toISOString()});showToast("백업 완료 ✅");setModal(null);};
   const handleImport=(e)=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=async(ev)=>{try{const p=JSON.parse(ev.target.result);const d=p.data||p;if(!d.folders||!d.items)throw new Error();if(p.imgs){for(const[k,durl]of Object.entries(p.imgs)){try{await idbPut(k,durl);}catch{}}}if(p.settings)updateSettings(p.settings);persist(d);showToast("복원 완료 🎉");setModal(null);}catch{showToast("올바른 백업 파일이 아니에요","err");}};r.readAsText(file);};
   const askConfirm=(cfg)=>setConfirmCfg(cfg);
   const handleWipe=()=>askConfirm({title:"모든 데이터 삭제",message:"모든 폴더와 기록, 사진이 사라져요.\n복구할 수 없어요. 정말 삭제할까요?",confirmText:"전체 삭제",onConfirm:async()=>{const all=await idbAll();for(const k of Object.keys(all))await idbDelete(k);localStorage.removeItem(SK);persist(DEFAULT_DATA);showToast("전체 삭제 완료");setView("folders");setConfirmCfg(null);}});
   const delItem=(id)=>{const doDel=()=>{const it=data.items.find(i=>i.id===id);if(it?.coverId)idbDelete(it.coverId);persist({...data,items:data.items.filter(i=>i.id!==id)});setConfirmCfg(null);};if(settings.confirmDelete)askConfirm({title:"기록 삭제",message:"이 기록을 삭제할까요?",onConfirm:doDel});else doDel();};
-  const delFolder=(folder)=>askConfirm({title:"폴더 삭제",message:`"${folder.name}" 폴더와 안의 모든 기록이 사라져요.\n정말 삭제할까요?`,onConfirm:()=>{data.items.filter(i=>i.folderId===folder.id).forEach(i=>i.coverId&&idbDelete(i.coverId));persist({...data,folders:data.folders.filter(f=>f.id!==folder.id),items:data.items.filter(i=>i.folderId!==folder.id)});setConfirmCfg(null);setModal(null);setEditTarget(null);setView("folders");setActiveFolderId(null);showToast("폴더 삭제 완료");}});
+  const delFolder=(folder)=>askConfirm({title:"폴더 삭제",message:`"${folder.name}" 폴더와 안의 모든 기록이 사라져요.\n정말 삭제할까요?`,onConfirm:()=>{data.items.filter(i=>i.folderId===folder.id).forEach(i=>i.coverId&&idbDelete(i.coverId));const subIds=data.items.filter(i=>i._kind==="ledgerSub"&&i.folderId===folder.id).map(s=>s.id);persist({...data,folders:data.folders.filter(f=>f.id!==folder.id),items:data.items.filter(i=>i.folderId!==folder.id&&!(i._kind==="ledgerEntry"&&subIds.includes(i.ledgerSubId)))});setConfirmCfg(null);setModal(null);setEditTarget(null);setView("folders");setActiveFolderId(null);showToast("폴더 삭제 완료");}});
 
   const stats=(()=>{const items=data.items.filter(i=>getItemDisplayType(i)!=="diary");const total=items.length;const rated=items.filter(i=>i.rating>0);const avg=rated.length?(rated.reduce((s,i)=>s+i.rating,0)/rated.length).toFixed(1):"-";const five=items.filter(i=>i.rating>=5).length;const counts={};items.forEach(i=>{const t=getItemDisplayType(i);counts[t]=(counts[t]||0)+1;});const byType=Object.entries(counts).map(([key,count])=>({key,count,label:FOLDER_TYPES[key]?.label||key,emoji:FOLDER_TYPES[key]?.emoji||"",color:FOLDER_TYPES[key]?.color||"#888",pct:total?Math.round(count/total*100):0})).sort((a,b)=>b.count-a.count);
     const now=new Date();const months=[];for(let m=5;m>=0;m--){const d=new Date(now.getFullYear(),now.getMonth()-m,1);months.push({label:`${d.getMonth()+1}월`,key:`${d.getFullYear()}-${d.getMonth()}`});}
@@ -1002,9 +1025,10 @@ function App(){
       @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
       @keyframes bootPop{0%{opacity:0;transform:scale(.4) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
       @keyframes bootDot{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-5px)}}
-      @keyframes screenIn{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+      @keyframes screenIn{0%{opacity:0;transform:translateY(18px) scale(.975)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
       @keyframes slideInRight{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
-      .screen-anim{animation:screenIn .32s cubic-bezier(.22,1,.36,1) both}
+      @keyframes balPop{0%{opacity:0;transform:translateY(8px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+      .screen-anim{animation:screenIn .42s cubic-bezier(.34,1.3,.46,1) both}
       ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:${T.surface2};border-radius:2px}
       input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=color]::-webkit-color-swatch-wrapper{padding:0}input[type=color]::-webkit-color-swatch{border:none;border-radius:6px}`}</style>
     <div style={{minHeight:"100vh",background:T.bg,color:T.text,maxWidth:isWide?"100%":480,width:isWide?"100%":undefined,margin:"0 auto",position:"relative",transition:"background .4s",padding:isWide?"0 24px":0,boxSizing:"border-box"}}>
@@ -1024,7 +1048,7 @@ function App(){
         {view!=="settings"&&<input value={view==="folders"?globalSearch:search} onChange={e=>view==="folders"?setGlobalSearch(e.target.value):setSearch(e.target.value)} placeholder={view==="folders"?"제목, 가수, 상태 등 검색...":"이 폴더에서 검색..."} style={{width:"100%",background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.text,padding:"9px 14px",fontSize:13,outline:"none"}}/>}
       </div>
       {view==="settings"
-        ?<div key="settings" className="screen-anim"><SettingsScreen settings={settings} onChange={updateSettings} onExport={handleExport} onImport={handleImport} onWipe={handleWipe} stats={stats} user={user} onLogin={()=>{setShowAuth(true);}} onLogout={handleLogout} syncing={syncing} T={T}/></div>
+        ?<div key="settings" className="screen-anim"><SettingsScreen settings={settings} onChange={updateSettings} onExport={handleExport} onImport={handleImport} onWipe={handleWipe} stats={stats} user={user} onLogin={()=>{setShowAuth(true);}} onLogout={handleLogout} syncing={syncing} syncFailed={syncFailed} onRetrySync={doPush} T={T}/></div>
         :<div key={view+(activeFolderId||"")} className="screen-anim" style={{padding:"16px 16px 48px",position:"relative",zIndex:1}}>
           {view==="folders"&&globalSearch.trim()&&(<div style={{marginBottom:20}}><div style={{fontSize:12,color:T.dim2,marginBottom:10,fontWeight:600}}>검색 결과 {globalResults.length}개</div>{globalResults.length===0?<div style={{textAlign:"center",padding:"30px",color:T.dim,fontSize:13}}>결과 없음</div>:<div style={{display:"flex",flexDirection:"column",gap:12}}>{globalResults.map(item=><ItemCard key={item.id} item={{...item,_displayType:getItemDisplayType(item)}} folderType={getItemDisplayType(item)} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}} onDelete={delItem}/>)}</div>}</div>)}
           {view==="folders"&&!globalSearch.trim()&&(<div style={{display:"grid",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(260px, 1fr))":"1fr 1fr",gap:isWide?16:12}}>{data.folders.map(folder=><FolderCard key={folder.id} folder={folder} itemCount={folderItemCount(folder)} streak={folderStreak(folder)} T={T} onClick={()=>openFolder(folder)}/>)}</div>)}
@@ -1060,7 +1084,7 @@ function App(){
     {modal==="ledgerEntry"&&ledgerSub&&<LedgerEntryModal entry={editTarget} subId={ledgerSub.id} accounts={activeFolder?.accounts||[]} customCats={activeFolder?.customCats} onManageCats={()=>setModal("categories")} T={T} onClose={()=>{setModal(null);setEditTarget(null);}} onSave={(entry)=>{persist({...data,items:editTarget?data.items.map(i=>i.id===entry.id?entry:i):[entry,...data.items]});setModal(null);setEditTarget(null);}}/>}
     {modal==="categories"&&activeFolder&&<CategoryModal customCats={activeFolder.customCats} T={T} onClose={()=>setModal(ledgerSub?"ledgerEntry":null)} onSave={(cc)=>{persist({...data,folders:data.folders.map(f=>f.id===activeFolderId?{...f,customCats:cc}:f)});setModal(ledgerSub?"ledgerEntry":null);showToast("카테고리를 저장했어요 🏷️");}}/>}
     {modal==="budget"&&ledgerSub&&<BudgetModal sub={data.items.find(i=>i.id===ledgerSub.id)||ledgerSub} customCats={activeFolder?.customCats} T={T} onClose={()=>setModal(null)} onSave={(budgets)=>{persist({...data,items:data.items.map(i=>i.id===ledgerSub.id?{...i,budgets}:i)});setModal(null);showToast("예산을 저장했어요 🎯");}}/>}
-    {modal==="accounts"&&activeFolder&&<AccountModal accounts={activeFolder.accounts||[]} T={T} onClose={()=>setModal(null)} onSave={(list)=>{persist({...data,folders:data.folders.map(f=>f.id===activeFolderId?{...f,accounts:list}:f)});setModal(null);showToast("계좌를 저장했어요 💳");}}/>}
+    {modal==="accounts"&&activeFolder&&<AccountModal accounts={activeFolder.accounts||[]} T={T} onClose={()=>setModal(null)} onSave={(list)=>{const validIds=list.map(a=>a.id);const firstId=list[0]?list[0].id:null;const subIds=data.items.filter(i=>i._kind==="ledgerSub"&&i.folderId===activeFolderId).map(s=>s.id);const newItems=data.items.map(i=>{if(i._kind!=="ledgerEntry"||!subIds.includes(i.ledgerSubId))return i;if(i.lType==="transfer"){const nf=validIds.includes(i.fromAccount)?i.fromAccount:firstId;const nt=validIds.includes(i.toAccount)?i.toAccount:firstId;return {...i,fromAccount:nf,toAccount:nt};}if(i.account&&!validIds.includes(i.account))return {...i,account:firstId};return i;});persist({...data,items:newItems,folders:data.folders.map(f=>f.id===activeFolderId?{...f,accounts:list}:f)});setModal(null);showToast("계좌를 저장했어요 💳");}}/>}
     {modal==="fixedExpense"&&activeFolder&&<FixedExpenseModal fixedExpenses={activeFolder.fixedExpenses||[]} T={T} onClose={()=>setModal(null)} onSave={(list)=>{persist({...data,folders:data.folders.map(f=>f.id===activeFolderId?{...f,fixedExpenses:list}:f)});setModal(null);showToast("고정 지출을 저장했어요");}}/>}
     {confirmCfg&&<ConfirmDialog {...confirmCfg} T={T} onCancel={()=>setConfirmCfg(null)}/>}
   </>);
