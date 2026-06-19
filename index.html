@@ -75,9 +75,22 @@ const FOLDER_TYPES = {
     itemFields:[{key:"creator",label:"제작사",placeholder:"개발사 이름"},{key:"releaseYear",label:"출시 연도",placeholder:"2024",type:"number"},{key:"version",label:"평가 당시 버전",placeholder:"v1.2.0"}]},
   toku:{ label:"특촬물",emoji:"💥",color:"#EF4444",statusSet:"serial",coverRatio:"2/3",
     itemFields:[{key:"creator",label:"제작사",placeholder:"제작사 이름"},{key:"releaseYear",label:"방영 연도",placeholder:"2024",type:"number"},{key:"latestEp",label:"평가 당시 최신화",placeholder:"15화"}]},
-  diary:{ label:"일기",emoji:"📔",color:"#A78BFA",statusSet:"none",coverRatio:"1/1",isDiary:true,
+  diary:{ label:"일기",emoji:"📔",color:"#E8A23D",statusSet:"none",coverRatio:"1/1",isDiary:true,
+    itemFields:[]},
+  ledger:{ label:"가계부",emoji:"💰",color:"#22C55E",statusSet:"none",coverRatio:"1/1",isLedger:true,
     itemFields:[]},
 };
+
+// 가계부 카테고리 (지출/수입)
+const LEDGER_CATS={
+  expense:[{k:"food",label:"식비",emoji:"🍽️"},{k:"transport",label:"교통",emoji:"🚌"},{k:"shopping",label:"쇼핑",emoji:"🛍️"},{k:"culture",label:"문화/여가",emoji:"🎬"},{k:"health",label:"건강",emoji:"💊"},{k:"sub",label:"구독/월정액",emoji:"🔄"},{k:"living",label:"생활",emoji:"🏠"},{k:"etc",label:"기타",emoji:"📦"}],
+  income:[{k:"allowance",label:"용돈",emoji:"💵"},{k:"salary",label:"월급/알바",emoji:"💼"},{k:"gift",label:"선물",emoji:"🎁"},{k:"etc_in",label:"기타",emoji:"📥"}],
+};
+// 기본 + 사용자 커스텀 카테고리 합치기
+function getCats(type,customCats){const base=LEDGER_CATS[type]||LEDGER_CATS.expense;const custom=(customCats&&customCats[type])||[];return [...base,...custom];}
+function ledgerCat(type,k,customCats){const arr=getCats(type,customCats);return arr.find(c=>c.k===k)||arr[arr.length-1];}
+function wonFmt(n){return (n||0).toLocaleString("ko-KR")+"원";}
+const CAT_EMOJIS=["🍔","☕","🍜","🛒","👕","💄","🎮","📚","🚗","⛽","🏥","🐶","🎁","✈️","🏋️","🎵","💡","📱","🍺","🌸"];
 
 function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 function getStatusMeta(ft){return STATUS_SETS[FOLDER_TYPES[ft]?.statusSet||"none"];}
@@ -330,19 +343,19 @@ function FolderCard({folder,itemCount,streak,onClick,T}){
 function DiaryThumb({coverId,mood,size=44}){
   const [url,setUrl]=useState(null);
   useEffect(()=>{let ok=true;if(coverId)getImgUrl(coverId).then(u=>{if(ok)setUrl(u);});else setUrl(null);return()=>{ok=false;};},[coverId]);
-  if(url)return <img src={url} style={{width:size,height:size,borderRadius:10,objectFit:"cover",flexShrink:0,border:"1px solid rgba(167,139,250,0.3)"}}/>;
+  if(url)return <img src={url} style={{width:size,height:size,borderRadius:10,objectFit:"cover",flexShrink:0,border:"1px solid rgba(232,162,61,0.35)"}}/>;
   return <div style={{fontSize:size*0.68,flexShrink:0,width:size,textAlign:"center"}}>{mood?mood.e:"📝"}</div>;
 }
 function DiaryCard({entry,onOpen,onEdit,onDelete,T}){
   const mood=MOODS.find(m=>m.label===entry.mood);
-  return <div onClick={()=>onOpen(entry)} style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer",display:"flex",gap:12,alignItems:"center",animation:"fadeUp .25s ease both",position:"relative"}}>
+  return <div onClick={()=>onOpen(entry)} style={{background:`linear-gradient(135deg, rgba(232,162,61,0.07), ${T.cardBg} 70%)`,border:`1px solid rgba(232,162,61,0.18)`,borderRadius:16,padding:"14px 16px",cursor:"pointer",display:"flex",gap:12,alignItems:"center",animation:"fadeUp .25s ease both",position:"relative"}}>
     <DiaryThumb coverId={entry.coverId} mood={mood}/>
     <div style={{flex:1,minWidth:0}}>
       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
         {entry.coverId&&mood&&<span style={{fontSize:18,flexShrink:0}}>{mood.e}</span>}
         <span style={{fontFamily:"'Noto Serif KR',serif",fontSize:15,fontWeight:700,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{entry.title||"무제"}</span>
       </div>
-      <div style={{fontSize:11,color:"#A78BFA",fontWeight:600,marginBottom:4}}>{fmtDiaryDate(entry.dateKey)}{mood?` · ${mood.label}`:""}</div>
+      <div style={{fontSize:11,color:"#E8A23D",fontWeight:600,marginBottom:4}}>{fmtDiaryDate(entry.dateKey)}{mood?` · ${mood.label}`:""}</div>
       {entry.notes&&<div style={{fontSize:12,color:T.dim2,lineHeight:1.5,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{entry.notes}</div>}
     </div>
     <button onClick={e=>{e.stopPropagation();onDelete(entry.id);}} style={{flexShrink:0,width:28,height:28,borderRadius:8,border:"none",background:"rgba(190,30,30,0.12)",color:"#F87171",fontSize:12,cursor:"pointer"}}>✕</button>
@@ -361,13 +374,13 @@ function DiaryModal({entry,folderId,onSave,onClose,onImgError,T}){
     <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:560,maxHeight:"93vh",padding:"20px 20px 36px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
       <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,display:"flex",alignItems:"center",gap:8,color:T.text}}><span style={{fontSize:22}}>📔</span>{entry?"일기 수정":"오늘의 일기"}</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
-      <div style={{fontSize:13,color:"#A78BFA",fontWeight:600}}>{fmtDiaryDate(dateKey)}</div>
+      <div style={{fontSize:13,color:"#E8A23D",fontWeight:600}}>{fmtDiaryDate(dateKey)}</div>
       <div style={{fontSize:11,color:T.dim2,marginTop:-8,lineHeight:1.5}}>💡 새벽 4시 전까지는 전날 일기로 기록돼요 (밤늦게 써도 괜찮아요)</div>
       <div><label style={lbl}>제목</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="오늘의 제목" style={inp}/></div>
-      <div><label style={lbl}>오늘의 기분</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{MOODS.map(m=><button key={m.label} onClick={()=>setMood(m.label)} style={{padding:"8px 10px",borderRadius:12,border:`1px solid ${mood===m.label?"#A78BFA":T.border}`,background:mood===m.label?"#A78BFA22":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:52}}><span style={{fontSize:22}}>{m.e}</span><span style={{fontSize:10,color:mood===m.label?"#A78BFA":T.dim2,fontWeight:600}}>{m.label}</span></button>)}</div></div>
+      <div><label style={lbl}>오늘의 기분</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{MOODS.map(m=><button key={m.label} onClick={()=>setMood(m.label)} style={{padding:"8px 10px",borderRadius:12,border:`1px solid ${mood===m.label?"#E8A23D":T.border}`,background:mood===m.label?"#E8A23D22":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:52}}><span style={{fontSize:22}}>{m.e}</span><span style={{fontSize:10,color:mood===m.label?"#E8A23D":T.dim2,fontWeight:600}}>{m.label}</span></button>)}</div></div>
       <div><label style={lbl}>오늘 하루</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="오늘 있었던 일, 느낀 점을 자유롭게 적어보세요..." style={{...inp,resize:"vertical",minHeight:280,fontSize:16,lineHeight:1.9,padding:"16px 16px"}}/></div>
       <div><label style={lbl}>오늘의 사진 <span style={{color:T.dim,fontWeight:400}}>(1장, 선택)</span></label><div style={{width:"45%"}}><CoverUpload imgId={coverId} ratio="1/1" onChange={setCoverId} onError={onImgError} T={T}/></div></div>
-      <button onClick={()=>{onSave({id:entry?.id||uid(),folderId:entry?.folderId||folderId,dateKey,title:title.trim(),mood,notes,coverId,createdAt:entry?.createdAt||new Date().toISOString()});}} style={{padding:"14px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#7C3AED,#A78BFA)",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>{entry?"수정 완료":"오늘 일기 저장"}</button>
+      <button onClick={()=>{onSave({id:entry?.id||uid(),folderId:entry?.folderId||folderId,dateKey,title:title.trim(),mood,notes,coverId,createdAt:entry?.createdAt||new Date().toISOString()});}} style={{padding:"14px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#D98324,#F2B765)",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>{entry?"수정 완료":"오늘 일기 저장"}</button>
     </div></div>;
 }
 
@@ -375,7 +388,7 @@ function DiaryDetail({entry,onClose,onEdit,wide,T}){
   const mood=MOODS.find(m=>m.label===entry.mood);
   const maxW=wide?720:560;
   return <div style={{position:"fixed",inset:0,background:T.bg,zIndex:400,overflowY:"auto",animation:"fadeIn .2s ease",maxWidth:maxW,margin:"0 auto"}}>
-    <div style={{position:"fixed",inset:0,pointerEvents:"none",maxWidth:maxW,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, #A78BFA33, #A78BFA10 45%, transparent 70%)`}}/>
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",maxWidth:maxW,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, #E8A23D38, #E8A23D12 45%, transparent 70%)`}}/>
     <div style={{position:"sticky",top:0,zIndex:10,background:T.headerBg,backdropFilter:"blur(20px)",padding:"calc(env(safe-area-inset-top, 0px) + 14px) 20px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${T.border}`}}>
       <button onClick={onClose} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"8px 14px",fontSize:14,cursor:"pointer"}}>← 닫기</button>
       <button onClick={()=>onEdit(entry)} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"8px 14px",fontSize:14,cursor:"pointer",fontWeight:600}}>✏️ 수정</button></div>
@@ -383,7 +396,7 @@ function DiaryDetail({entry,onClose,onEdit,wide,T}){
       <div style={{textAlign:"center"}}>
         <div style={{fontSize:wide?80:60,marginBottom:14}}>{mood?mood.e:"📝"}</div>
         <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:wide?32:24,fontWeight:700,color:T.text,marginBottom:8}}>{entry.title||"무제"}</div>
-        <div style={{fontSize:14,color:"#A78BFA",fontWeight:600}}>{fmtDiaryDate(entry.dateKey)}{mood?` · ${mood.label}`:""}</div>
+        <div style={{fontSize:14,color:"#E8A23D",fontWeight:600}}>{fmtDiaryDate(entry.dateKey)}{mood?` · ${mood.label}`:""}</div>
       </div>
       {entry.coverId&&<div style={{maxWidth:wide?460:380,width:"100%",margin:"0 auto"}}><DiaryPhoto coverId={entry.coverId}/></div>}
       {entry.notes&&<div style={{background:T.cardBg,borderRadius:16,border:`1px solid ${T.border}`,padding:wide?"28px 32px":"20px"}}><div style={{fontSize:wide?17:15,color:T.text,lineHeight:1.9,whiteSpace:"pre-wrap"}}>{entry.notes}</div></div>}
@@ -393,7 +406,371 @@ function DiaryPhoto({coverId}){
   const [url,setUrl]=useState(null);
   useEffect(()=>{let ok=true;getImgUrl(coverId).then(u=>{if(ok)setUrl(u);});return()=>{ok=false;};},[coverId]);
   if(!url)return null;
-  return <img src={url} style={{width:"100%",aspectRatio:"1/1",objectFit:"cover",borderRadius:16,border:"1px solid rgba(167,139,250,0.3)",boxShadow:"0 8px 30px rgba(167,139,250,0.2)"}}/>;
+  return <img src={url} style={{width:"100%",aspectRatio:"1/1",objectFit:"cover",borderRadius:16,border:"1px solid rgba(232,162,61,0.35)",boxShadow:"0 8px 30px rgba(232,162,61,0.22)"}}/>;
+}
+
+// ── 가계부 컴포넌트 ──
+const LG="#22C55E";
+// 하위 폴더 카드
+function LedgerSubCard({sub,total,onOpen,onDelete,T}){
+  return <div onClick={()=>onOpen(sub)} style={{background:T.cardBg,border:`1px solid ${LG}2a`,borderRadius:16,padding:"16px 18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,position:"relative"}}>
+    <div style={{width:46,height:46,borderRadius:12,background:`${LG}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🧾</div>
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:16,fontWeight:700,color:T.text}}>{sub.title}</div>
+      <div style={{fontSize:12,marginTop:3,display:"flex",gap:10}}>
+        <span style={{color:"#F87171"}}>지출 {wonFmt(total.expense)}</span>
+        {total.income>0&&<span style={{color:LG}}>수입 {wonFmt(total.income)}</span>}
+      </div>
+    </div>
+    <button onClick={e=>{e.stopPropagation();onDelete(sub.id);}} style={{flexShrink:0,width:28,height:28,borderRadius:8,border:"none",background:"rgba(190,30,30,0.12)",color:"#F87171",fontSize:12,cursor:"pointer"}}>✕</button>
+  </div>;
+}
+
+// 가계부 홈: 고정지출 요약 + 하위 폴더 목록
+function LedgerHome({ledgerFolder,subs,subTotal,fixedExpenses,accounts,accountBalance,onOpenSub,onAddSub,onDeleteSub,onManageFixed,onManageAccounts,wide,T}){
+  const fixedTotal=fixedExpenses.reduce((s,f)=>s+(f.amount||0),0);
+  const accs=accounts&&accounts.length?accounts:[];
+  const total=accountBalance(null);
+  return <div style={{display:"flex",flexDirection:"column",gap:14}}>
+    {/* 총 잔액 (큰 카드) */}
+    <div style={{background:`linear-gradient(135deg, ${LG}2b, ${LG}0a 60%, ${T.cardBg})`,border:`1px solid ${LG}44`,borderRadius:18,padding:wide?"28px 26px":"24px 22px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div style={{fontSize:13,fontWeight:700,color:LG}}>총 잔액</div>
+        <button onClick={onManageAccounts} style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${T.border}`,borderRadius:8,color:T.muted,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>계좌 관리</button>
+      </div>
+      <div style={{fontSize:11,color:T.dim2,marginBottom:4}}>모든 계좌 합계</div>
+      <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:wide?40:34,fontWeight:700,color:total.balance>=0?T.text:"#F87171",letterSpacing:"-0.02em"}}>{wonFmt(total.balance)}</div>
+      <div style={{display:"flex",gap:16,marginTop:14}}>
+        <div><span style={{fontSize:11,color:T.dim2}}>수입 </span><span style={{fontSize:13,fontWeight:700,color:LG}}>{wonFmt(total.income)}</span></div>
+        <div><span style={{fontSize:11,color:T.dim2}}>지출 </span><span style={{fontSize:13,fontWeight:700,color:"#F87171"}}>{wonFmt(total.expense)}</span></div>
+      </div>
+    </div>
+    {/* 계좌별 잔액 */}
+    {accs.length>0&&<div>
+      <div style={{fontSize:12,fontWeight:700,color:T.muted,marginBottom:8}}>💳 계좌별 잔액</div>
+      <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:2}}>
+        {accs.map(a=>{const b=accountBalance(a.id);return <div key={a.id} onClick={onManageAccounts} style={{flexShrink:0,minWidth:130,background:`${a.color}12`,border:`1px solid ${a.color}33`,borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:"50%",background:a.color,flexShrink:0}}/><span style={{fontSize:12,fontWeight:700,color:a.color,whiteSpace:"nowrap"}}>{a.name}</span></div>
+          <div style={{fontSize:15,fontWeight:700,color:b.balance>=0?T.text:"#F87171",marginTop:5,fontFamily:"'Noto Serif KR',serif"}}>{wonFmt(b.balance)}</div>
+        </div>;})}
+      </div>
+    </div>}
+    {accs.length===0&&<div onClick={onManageAccounts} style={{background:T.cardBg,border:`1px dashed ${T.borderStrong}`,borderRadius:12,padding:"14px",textAlign:"center",cursor:"pointer",color:T.dim2,fontSize:13}}>💳 계좌를 추가하면 계좌별로 관리할 수 있어요</div>}
+    {/* 고정 지출 (작게) */}
+    <div onClick={onManageFixed} style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+      <span style={{fontSize:16}}>🔄</span>
+      <div style={{flex:1,minWidth:0}}><span style={{fontSize:13,fontWeight:600,color:T.text}}>고정 지출</span> <span style={{fontSize:12,color:T.dim2}}>{fixedExpenses.length}개 · 매달 {wonFmt(fixedTotal)}</span></div>
+      <span style={{color:T.dim,fontSize:16}}>›</span>
+    </div>
+    {/* 하위 폴더 */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+      <div style={{fontSize:13,fontWeight:700,color:T.muted}}>📂 가계부 목록</div>
+      <button onClick={onAddSub} style={{background:`${LG}`,border:"none",borderRadius:9,color:"#fff",padding:"7px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ 새 가계부</button>
+    </div>
+    {subs.length===0
+      ?<div style={{textAlign:"center",padding:"40px 20px",color:T.dim}}><div style={{fontSize:40,marginBottom:10}}>🧾</div><div style={{fontSize:14,color:T.dim2}}>아직 가계부가 없어요</div><div style={{fontSize:12,marginTop:6}}>"26년 7월 가계부"처럼 만들어보세요</div></div>
+      :<div style={{display:wide?"grid":"flex",gridTemplateColumns:wide?"repeat(auto-fill,minmax(300px,1fr))":undefined,flexDirection:wide?undefined:"column",gap:12}}>{subs.map(sub=><LedgerSubCard key={sub.id} sub={sub} total={subTotal(sub.id)} onOpen={onOpenSub} onDelete={onDeleteSub} T={T}/>)}</div>}
+  </div>;
+}
+
+// 하위 폴더 안: 합계 + 거래 목록
+function LedgerSubView({sub,entries,accounts,customCats,onClose,onAddEntry,onEditEntry,onDeleteEntry,onManageBudget,onOpenStats,wide,T}){
+  const [q,setQ]=useState("");
+  const income=entries.filter(e=>e.lType==="income").reduce((s,e)=>s+(e.amount||0),0);
+  const expense=entries.filter(e=>e.lType==="expense").reduce((s,e)=>s+(e.amount||0),0);
+  const accName=(id)=>(accounts||[]).find(a=>a.id===id)?.name||"";
+  const budgets=sub.budgets||{};
+  // 카테고리별 지출 (예산 비교용)
+  const catSpend={};entries.filter(e=>e.lType==="expense").forEach(e=>{catSpend[e.lCat]=(catSpend[e.lCat]||0)+(e.amount||0);});
+  const budgetRows=Object.keys(budgets).filter(k=>budgets[k]>0).map(k=>({k,cat:ledgerCat("expense",k,customCats),budget:budgets[k],spent:catSpend[k]||0}));
+  const ql=q.trim().toLowerCase();
+  const filtered=entries.filter(e=>{if(!ql)return true;const cat=e.lType==="transfer"?{label:"이체"}:ledgerCat(e.lType,e.lCat,customCats);return [e.memo,cat.label,e.lDate].join(" ").toLowerCase().includes(ql);});
+  const sorted=[...filtered].sort((a,b)=>(b.lDate||"").localeCompare(a.lDate||""));
+  const maxW=wide?760:520;
+  return <div style={{position:"fixed",inset:0,background:T.bg,zIndex:400,overflowY:"auto",animation:"fadeIn .2s ease",maxWidth:maxW,margin:"0 auto"}}>
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",maxWidth:maxW,margin:"0 auto",background:`radial-gradient(circle 600px at 50% 8%, ${LG}22, ${LG}08 45%, transparent 70%)`}}/>
+    <div style={{position:"sticky",top:0,zIndex:10,background:T.headerBg,backdropFilter:"blur(20px)",padding:"calc(env(safe-area-inset-top, 0px) + 14px) 20px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${T.border}`}}>
+      <button onClick={onClose} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"8px 14px",fontSize:14,cursor:"pointer"}}>← 닫기</button>
+      <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:16,fontWeight:700,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"45%"}}>{sub.title}</div>
+      <button onClick={onAddEntry} style={{background:LG,border:"none",borderRadius:10,color:"#fff",padding:"8px 14px",fontSize:14,fontWeight:700,cursor:"pointer"}}>+ 기록</button>
+    </div>
+    <div style={{padding:wide?"28px 32px 80px":"20px 18px 60px",position:"relative",zIndex:1}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+        <div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"14px"}}><div style={{fontSize:11,color:T.dim2}}>수입</div><div style={{fontSize:16,fontWeight:700,color:LG,fontFamily:"'Noto Serif KR',serif",marginTop:3}}>{wonFmt(income)}</div></div>
+        <div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"14px"}}><div style={{fontSize:11,color:T.dim2}}>지출</div><div style={{fontSize:16,fontWeight:700,color:"#F87171",fontFamily:"'Noto Serif KR',serif",marginTop:3}}>{wonFmt(expense)}</div></div>
+        <div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"14px"}}><div style={{fontSize:11,color:T.dim2}}>남은 돈</div><div style={{fontSize:16,fontWeight:700,color:income-expense>=0?T.text:"#F87171",fontFamily:"'Noto Serif KR',serif",marginTop:3}}>{wonFmt(income-expense)}</div></div>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        <button onClick={onOpenStats} style={{flex:1,background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"9px",fontSize:12.5,fontWeight:600,cursor:"pointer"}}>📊 통계</button>
+        <button onClick={onManageBudget} style={{flex:1,background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"9px",fontSize:12.5,fontWeight:600,cursor:"pointer"}}>🎯 예산</button>
+      </div>
+      {/* 예산 진행바 */}
+      {budgetRows.length>0&&<div style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 16px",marginBottom:14,display:"flex",flexDirection:"column",gap:11}}>
+        <div style={{fontSize:12,fontWeight:700,color:T.muted}}>🎯 예산</div>
+        {budgetRows.map(r=>{const pct=Math.min(r.spent/r.budget*100,100);const over=r.spent>r.budget;return <div key={r.k}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span style={{color:T.text}}>{r.cat.emoji} {r.cat.label}</span><span style={{color:over?"#F87171":T.dim2}}>{wonFmt(r.spent)} / {wonFmt(r.budget)}</span></div>
+          <div style={{height:7,background:T.inputBg,borderRadius:4,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:over?"#F87171":LG,borderRadius:4,transition:"width .4s"}}/></div>
+          {over&&<div style={{fontSize:10.5,color:"#F87171",marginTop:3}}>예산 {wonFmt(r.spent-r.budget)} 초과</div>}
+        </div>;})}
+      </div>}
+      {/* 검색 */}
+      {entries.length>0&&<input value={q} onChange={e=>setQ(e.target.value)} placeholder="🔍 메모, 카테고리 검색..." style={{width:"100%",background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:12,color:T.text,padding:"11px 14px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:14}}/>}
+      {sorted.length===0
+        ?<div style={{textAlign:"center",padding:"50px 20px",color:T.dim}}><div style={{fontSize:40,marginBottom:10}}>{q?"🔍":"💸"}</div><div style={{fontSize:14,color:T.dim2}}>{q?"검색 결과가 없어요":"아직 기록이 없어요"}</div>{!q&&<div style={{fontSize:12,marginTop:6}}>+ 기록 버튼으로 추가해보세요</div>}</div>
+        :<div style={{display:"flex",flexDirection:"column",gap:8}}>{sorted.map(e=>{
+          if(e.lType==="transfer"){return <div key={e.id} onClick={()=>onEditEntry(e)} style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+            <div style={{width:38,height:38,borderRadius:10,background:"rgba(59,130,246,0.13)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🔄</div>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.memo||"이체"}</div><div style={{fontSize:11,color:T.dim2,marginTop:2}}>{accName(e.fromAccount)} → {accName(e.toAccount)} · {e.lDate||""}</div></div>
+            <div style={{fontSize:14,fontWeight:700,color:"#3B82F6",flexShrink:0,fontFamily:"'Noto Serif KR',serif"}}>{wonFmt(e.amount)}</div>
+            <button onClick={ev=>{ev.stopPropagation();onDeleteEntry(e.id);}} style={{flexShrink:0,width:26,height:26,borderRadius:7,border:"none",background:"rgba(190,30,30,0.1)",color:"#F87171",fontSize:11,cursor:"pointer"}}>✕</button>
+          </div>;}
+          const cat=ledgerCat(e.lType,e.lCat,customCats);const isInc=e.lType==="income";return <div key={e.id} onClick={()=>onEditEntry(e)} style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+          <div style={{width:38,height:38,borderRadius:10,background:isInc?`${LG}18`:"rgba(248,113,113,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{e.isFixed?"🔄":cat.emoji}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:14,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.memo||cat.label}{e.isFixed?" (고정)":""}</div>
+            <div style={{fontSize:11,color:T.dim2,marginTop:2}}>{cat.label}{e.account?` · ${accName(e.account)}`:""} · {e.lDate||""}</div>
+          </div>
+          <div style={{fontSize:15,fontWeight:700,color:isInc?LG:"#F87171",flexShrink:0,fontFamily:"'Noto Serif KR',serif"}}>{isInc?"+":"-"}{wonFmt(e.amount)}</div>
+          <button onClick={ev=>{ev.stopPropagation();onDeleteEntry(e.id);}} style={{flexShrink:0,width:26,height:26,borderRadius:7,border:"none",background:"rgba(190,30,30,0.1)",color:"#F87171",fontSize:11,cursor:"pointer"}}>✕</button>
+        </div>;})}</div>}
+    </div>
+  </div>;
+}
+
+// 거래 입력 모달
+function LedgerEntryModal({entry,subId,accounts,onSave,onClose,T}){
+  const [lType,setLType]=useState(entry?.lType||"expense");
+  const [lCat,setLCat]=useState(entry?.lCat||"food");
+  const [amount,setAmount]=useState(entry?.amount?String(entry.amount):"");
+  const [memo,setMemo]=useState(entry?.memo||"");
+  const [lDate,setLDate]=useState(entry?.lDate||new Date().toISOString().slice(0,10));
+  const accs=accounts&&accounts.length?accounts:[];
+  const [account,setAccount]=useState(entry?.account||(accs[0]?accs[0].id:null));
+  const [fromAccount,setFromAccount]=useState(entry?.fromAccount||(accs[0]?accs[0].id:null));
+  const [toAccount,setToAccount]=useState(entry?.toAccount||(accs[1]?accs[1].id:(accs[0]?accs[0].id:null)));
+  const cats=lType==="transfer"?[]:getCats(lType,customCats);
+  useEffect(()=>{if(lType!=="transfer"&&!cats.find(c=>c.k===lCat))setLCat(cats[0]?.k);},[lType]);
+  const lbl={fontSize:11,fontWeight:600,color:T.muted,letterSpacing:"0.06em",marginBottom:8,display:"block"};
+  const inp={width:"100%",background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:12,color:T.text,padding:"12px 14px",fontSize:15,outline:"none",boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif"};
+  const canTransfer=accs.length>=2;
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"93vh",padding:"20px 20px 36px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>💰 {entry?"기록 수정":"새 기록"}</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setLType("expense")} style={{flex:1,padding:"12px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",border:`1px solid ${lType==="expense"?"#F87171":T.border}`,background:lType==="expense"?"rgba(248,113,113,0.15)":"transparent",color:lType==="expense"?"#F87171":T.dim2}}>지출</button>
+        <button onClick={()=>setLType("income")} style={{flex:1,padding:"12px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",border:`1px solid ${lType==="income"?LG:T.border}`,background:lType==="income"?`${LG}22`:"transparent",color:lType==="income"?LG:T.dim2}}>수입</button>
+        {canTransfer&&<button onClick={()=>setLType("transfer")} style={{flex:1,padding:"12px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",border:`1px solid ${lType==="transfer"?"#3B82F6":T.border}`,background:lType==="transfer"?"rgba(59,130,246,0.15)":"transparent",color:lType==="transfer"?"#3B82F6":T.dim2}}>이체</button>}
+      </div>
+      <div><label style={lbl}>금액</label><input value={amount} onChange={e=>setAmount(e.target.value.replace(/[^0-9]/g,""))} inputMode="numeric" placeholder="0" style={{...inp,fontSize:20,fontWeight:700,textAlign:"right"}}/>{amount&&<div style={{textAlign:"right",fontSize:12,color:T.dim2,marginTop:4}}>{wonFmt(Number(amount))}</div>}</div>
+      {lType==="transfer"
+        ?<div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          <div style={{flex:1}}><label style={lbl}>보내는 계좌</label><select value={fromAccount} onChange={e=>setFromAccount(e.target.value)} style={{...inp,cursor:"pointer"}}>{accs.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+          <div style={{paddingBottom:12,color:"#3B82F6",fontSize:18}}>→</div>
+          <div style={{flex:1}}><label style={lbl}>받는 계좌</label><select value={toAccount} onChange={e=>setToAccount(e.target.value)} style={{...inp,cursor:"pointer"}}>{accs.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+        </div>
+        :<>
+        {accs.length>0&&<div><label style={lbl}>계좌</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{accs.map(a=><button key={a.id} onClick={()=>setAccount(a.id)} style={{padding:"8px 14px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",border:`1px solid ${account===a.id?a.color:T.border}`,background:account===a.id?`${a.color}1f`:"transparent",color:account===a.id?a.color:T.dim2}}>💳 {a.name}</button>)}</div></div>}
+        <div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><label style={{...lbl,marginBottom:0}}>카테고리</label><button onClick={onManageCats} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:7,color:T.muted,padding:"3px 9px",fontSize:11,cursor:"pointer"}}>+ 편집</button></div><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{cats.map(c=><button key={c.k} onClick={()=>setLCat(c.k)} style={{padding:"8px 12px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",border:`1px solid ${lCat===c.k?LG:T.border}`,background:lCat===c.k?`${LG}1a`:"transparent",color:lCat===c.k?LG:T.dim2}}>{c.emoji} {c.label}</button>)}</div></div>
+        </>}
+      <div><label style={lbl}>날짜</label><input type="date" value={lDate} onChange={e=>setLDate(e.target.value)} style={{...inp,cursor:"pointer"}}/></div>
+      <div><label style={lbl}>메모 <span style={{color:T.dim,fontWeight:400}}>(선택)</span></label><input value={memo} onChange={e=>setMemo(e.target.value)} placeholder={lType==="transfer"?"예: 비상금 이체":"예: 점심 김밥"} style={inp}/></div>
+      <button onClick={()=>{
+        if(!amount||Number(amount)<=0)return;
+        if(lType==="transfer"){if(fromAccount===toAccount)return;onSave({id:entry?.id||uid(),ledgerSubId:entry?.ledgerSubId||subId,_kind:"ledgerEntry",lType:"transfer",fromAccount,toAccount,amount:Number(amount),memo:memo.trim(),lDate,createdAt:entry?.createdAt||new Date().toISOString()});}
+        else onSave({id:entry?.id||uid(),ledgerSubId:entry?.ledgerSubId||subId,_kind:"ledgerEntry",lType,lCat,account,amount:Number(amount),memo:memo.trim(),lDate,isFixed:entry?.isFixed||false,createdAt:entry?.createdAt||new Date().toISOString()});
+      }} style={{padding:"14px",borderRadius:14,border:"none",background:lType==="transfer"?"linear-gradient(135deg,#3B82F6,#2563EB)":`linear-gradient(135deg,${LG},#16A34A)`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>{entry?"수정 완료":"저장하기"}</button>
+    </div></div>;
+}
+
+// 고정 지출 관리 모달
+function FixedExpenseModal({fixedExpenses,onSave,onClose,T}){
+  const [list,setList]=useState(fixedExpenses||[]);
+  const [name,setName]=useState("");
+  const [amount,setAmount]=useState("");
+  const [kind,setKind]=useState("expense");
+  const inp={background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:10,color:T.text,padding:"11px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif"};
+  const add=()=>{if(!name.trim()||!amount||Number(amount)<=0)return;setList([...list,{id:uid(),name:name.trim(),amount:Number(amount),kind}]);setName("");setAmount("");};
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"93vh",padding:"20px 20px 36px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>🔄 고정 항목 (월정액·정기수입)</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      <div style={{fontSize:12,color:T.dim2,lineHeight:1.6,background:`${LG}10`,borderRadius:10,padding:"10px 12px"}}>💡 여기 등록한 고정 항목은 <b>새 가계부를 만들 때 자동으로 들어가요.</b> (넷플릭스·통신비 같은 고정지출, 월급·용돈 같은 정기수입)</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {list.length===0&&<div style={{textAlign:"center",padding:"20px",color:T.dim,fontSize:13}}>아직 등록된 고정 항목이 없어요</div>}
+        {list.map(f=>{const isInc=f.kind==="income";return <div key={f.id} style={{display:"flex",alignItems:"center",gap:10,background:T.inputBg,borderRadius:10,padding:"10px 12px"}}>
+          <span style={{fontSize:18}}>{isInc?"💵":"🔄"}</span>
+          <span style={{flex:1,fontSize:14,color:T.text,fontWeight:600}}>{f.name}</span>
+          <span style={{fontSize:11,color:isInc?LG:"#F87171",fontWeight:600}}>{isInc?"수입":"지출"}</span>
+          <span style={{fontSize:14,color:isInc?LG:"#F87171",fontWeight:700}}>{isInc?"+":"-"}{wonFmt(f.amount)}</span>
+          <button onClick={()=>setList(list.filter(x=>x.id!==f.id))} style={{width:26,height:26,borderRadius:7,border:"none",background:"rgba(190,30,30,0.12)",color:"#F87171",fontSize:11,cursor:"pointer"}}>✕</button>
+        </div>;})}
+      </div>
+      <div style={{borderTop:`1px solid ${T.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{fontSize:11,fontWeight:600,color:T.muted}}>새 고정 항목 추가</div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setKind("expense")} style={{flex:1,padding:"9px",borderRadius:9,fontSize:12.5,fontWeight:700,cursor:"pointer",border:`1px solid ${kind==="expense"?"#F87171":T.border}`,background:kind==="expense"?"rgba(248,113,113,0.13)":"transparent",color:kind==="expense"?"#F87171":T.dim2}}>고정 지출</button>
+          <button onClick={()=>setKind("income")} style={{flex:1,padding:"9px",borderRadius:9,fontSize:12.5,fontWeight:700,cursor:"pointer",border:`1px solid ${kind==="income"?LG:T.border}`,background:kind==="income"?`${LG}1d`:"transparent",color:kind==="income"?LG:T.dim2}}>정기 수입</button>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder={kind==="income"?"이름 (예: 월급)":"이름 (예: 넷플릭스)"} style={{...inp,flex:1}}/>
+          <input value={amount} onChange={e=>setAmount(e.target.value.replace(/[^0-9]/g,""))} inputMode="numeric" placeholder="금액" style={{...inp,width:90}}/>
+          <button onClick={add} style={{background:LG,border:"none",borderRadius:10,color:"#fff",padding:"0 16px",fontSize:14,fontWeight:700,cursor:"pointer"}}>+</button>
+        </div>
+      </div>
+      <button onClick={()=>onSave(list)} style={{padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${LG},#16A34A)`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>저장</button>
+    </div></div>;
+}
+
+// 하위 폴더 생성 모달
+function LedgerSubModal({onSave,onClose,fixedCount,T}){
+  const now=new Date();
+  const [title,setTitle]=useState(`${String(now.getFullYear()).slice(2)}년 ${now.getMonth()+1}월 가계부`);
+  const inp={width:"100%",background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:12,color:T.text,padding:"12px 14px",fontSize:15,outline:"none",boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif"};
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,padding:"20px 20px 36px",display:"flex",flexDirection:"column",gap:16,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>🧾 새 가계부</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      <div><label style={{fontSize:11,fontWeight:600,color:T.muted,marginBottom:8,display:"block"}}>이름</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="26년 7월 가계부" style={inp}/></div>
+      {fixedCount>0&&<div style={{fontSize:12,color:LG,background:`${LG}10`,borderRadius:10,padding:"10px 12px"}}>🔄 등록된 고정 지출 {fixedCount}개가 자동으로 들어가요</div>}
+      <button onClick={()=>{if(!title.trim())return;onSave(title.trim());}} style={{padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${LG},#16A34A)`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>만들기</button>
+    </div></div>;
+}
+
+// 계좌 관리 모달
+const ACC_COLORS=["#22C55E","#3B82F6","#F59E0B","#EC4899","#A78BFA","#14B8A6","#EF4444","#F97316"];
+function AccountModal({accounts,onSave,onClose,T}){
+  const [list,setList]=useState(accounts&&accounts.length?accounts:[]);
+  const [name,setName]=useState("");
+  const [color,setColor]=useState(ACC_COLORS[0]);
+  const inp={background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:10,color:T.text,padding:"11px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif"};
+  const add=()=>{if(!name.trim())return;setList([...list,{id:uid(),name:name.trim(),color}]);setName("");setColor(ACC_COLORS[(list.length+1)%ACC_COLORS.length]);};
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"93vh",overflowY:"auto",padding:"20px 20px 36px",display:"flex",flexDirection:"column",gap:14,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>💳 계좌 관리</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      <div style={{fontSize:12,color:T.dim2,lineHeight:1.6,background:`${LG}10`,borderRadius:10,padding:"10px 12px"}}>💡 계좌을 나누면 기록할 때 어느 계좌에서 나가는지 고를 수 있어요. (예: 생활비 계좌, 비상금 계좌)</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {list.length===0&&<div style={{textAlign:"center",padding:"16px",color:T.dim,fontSize:13}}>아직 계좌이 없어요. 아래에서 추가해보세요.</div>}
+        {list.map(a=><div key={a.id} style={{display:"flex",alignItems:"center",gap:10,background:T.inputBg,borderRadius:10,padding:"10px 12px"}}>
+          <span style={{width:14,height:14,borderRadius:"50%",background:a.color,flexShrink:0}}/>
+          <span style={{flex:1,fontSize:14,fontWeight:600,color:T.text}}>{a.name}</span>
+          <button onClick={()=>setList(list.filter(x=>x.id!==a.id))} style={{width:26,height:26,borderRadius:7,border:"none",background:"rgba(190,30,30,0.12)",color:"#F87171",fontSize:11,cursor:"pointer"}}>✕</button>
+        </div>)}
+      </div>
+      <div style={{borderTop:`1px solid ${T.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{fontSize:11,fontWeight:600,color:T.muted}}>새 계좌 추가</div>
+        <div style={{display:"flex",gap:8}}>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="계좌 이름 (예: 생활비)" style={{...inp,flex:1}}/>
+          <button onClick={add} style={{background:color,border:"none",borderRadius:10,color:"#fff",padding:"0 18px",fontSize:14,fontWeight:700,cursor:"pointer"}}>+</button>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{ACC_COLORS.map(c=><button key={c} onClick={()=>setColor(c)} style={{width:30,height:30,borderRadius:"50%",background:c,border:color===c?`3px solid ${T.text}`:`2px solid ${T.border}`,cursor:"pointer"}}/>)}</div>
+      </div>
+      <button onClick={()=>onSave(list)} style={{padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${LG},#16A34A)`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>저장</button>
+    </div></div>;
+}
+
+// 카테고리 편집 모달 (커스텀 카테고리 추가/삭제)
+function CategoryModal({customCats,onSave,onClose,T}){
+  const [tab,setTab]=useState("expense");
+  const [custom,setCustom]=useState({expense:[...((customCats&&customCats.expense)||[])],income:[...((customCats&&customCats.income)||[])]});
+  const [name,setName]=useState("");
+  const [emoji,setEmoji]=useState(CAT_EMOJIS[0]);
+  const inp={background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:10,color:T.text,padding:"11px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif"};
+  const baseCount=LEDGER_CATS[tab].length;
+  const add=()=>{if(!name.trim())return;setCustom({...custom,[tab]:[...custom[tab],{k:"c"+uid(),label:name.trim(),emoji}]});setName("");};
+  const del=(k)=>setCustom({...custom,[tab]:custom[tab].filter(c=>c.k!==k)});
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:550,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"93vh",overflowY:"auto",padding:"20px 20px 36px",display:"flex",flexDirection:"column",gap:14,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>🏷️ 카테고리 편집</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setTab("expense")} style={{flex:1,padding:"10px",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",border:`1px solid ${tab==="expense"?"#F87171":T.border}`,background:tab==="expense"?"rgba(248,113,113,0.15)":"transparent",color:tab==="expense"?"#F87171":T.dim2}}>지출 카테고리</button>
+        <button onClick={()=>setTab("income")} style={{flex:1,padding:"10px",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",border:`1px solid ${tab==="income"?LG:T.border}`,background:tab==="income"?`${LG}22`:"transparent",color:tab==="income"?LG:T.dim2}}>수입 카테고리</button>
+      </div>
+      <div style={{fontSize:11,color:T.dim2}}>기본 카테고리</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{LEDGER_CATS[tab].map(c=><span key={c.k} style={{fontSize:12.5,background:T.inputBg,color:T.muted,borderRadius:8,padding:"6px 10px"}}>{c.emoji} {c.label}</span>)}</div>
+      {custom[tab].length>0&&<><div style={{fontSize:11,color:T.dim2,marginTop:4}}>내가 추가한 카테고리</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>{custom[tab].map(c=><div key={c.k} style={{display:"flex",alignItems:"center",gap:10,background:`${LG}12`,borderRadius:10,padding:"9px 12px"}}><span style={{fontSize:16}}>{c.emoji}</span><span style={{flex:1,fontSize:14,fontWeight:600,color:T.text}}>{c.label}</span><button onClick={()=>del(c.k)} style={{width:24,height:24,borderRadius:6,border:"none",background:"rgba(190,30,30,0.12)",color:"#F87171",fontSize:11,cursor:"pointer"}}>✕</button></div>)}</div></>}
+      <div style={{borderTop:`1px solid ${T.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{fontSize:11,fontWeight:600,color:T.muted}}>새 카테고리 추가</div>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{width:46,height:46,borderRadius:10,background:T.inputBg,border:`1px solid ${T.borderStrong}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{emoji}</div>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="카테고리 이름" style={{...inp,flex:1}}/>
+          <button onClick={add} style={{background:LG,border:"none",borderRadius:10,color:"#fff",padding:"0 18px",fontSize:14,fontWeight:700,cursor:"pointer"}}>+</button>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{CAT_EMOJIS.map(e=><button key={e} onClick={()=>setEmoji(e)} style={{width:34,height:34,borderRadius:8,fontSize:18,cursor:"pointer",border:emoji===e?`2px solid ${LG}`:`1px solid ${T.border}`,background:emoji===e?`${LG}1a`:"transparent"}}>{e}</button>)}</div>
+      </div>
+      <button onClick={()=>onSave(custom)} style={{padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${LG},#16A34A)`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>저장</button>
+    </div></div>;
+}
+
+// 예산 설정 모달 (카테고리별)
+function BudgetModal({sub,customCats,onSave,onClose,T}){
+  const [budgets,setBudgets]=useState({...(sub.budgets||{})});
+  const cats=getCats("expense",customCats);
+  const inp={width:"100%",background:T.inputBg,border:`1px solid ${T.borderStrong}`,borderRadius:10,color:T.text,padding:"10px 12px",fontSize:14,outline:"none",boxSizing:"border-box",textAlign:"right",fontFamily:"'Noto Sans KR',sans-serif"};
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:550,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(6px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"93vh",overflowY:"auto",padding:"20px 20px 36px",display:"flex",flexDirection:"column",gap:14,animation:"slideUp .3s cubic-bezier(.32,1.1,.58,1) both"}}>
+      <div style={{width:40,height:4,background:T.surface2,borderRadius:2,margin:"0 auto"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:"'Noto Serif KR',serif",fontSize:18,fontWeight:700,color:T.text}}>🎯 예산 설정</span><button onClick={onClose} style={{background:T.surface2,border:"none",borderRadius:"50%",width:30,height:30,color:T.muted,fontSize:16,cursor:"pointer"}}>✕</button></div>
+      <div style={{fontSize:12,color:T.dim2,lineHeight:1.6,background:`${LG}10`,borderRadius:10,padding:"10px 12px"}}>💡 카테고리별로 이 가계부의 예산을 정해요. 비워두면 예산 없음이에요.</div>
+      <div style={{display:"flex",flexDirection:"column",gap:9}}>
+        {cats.map(c=><div key={c.k} style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:17,width:24}}>{c.emoji}</span>
+          <span style={{flex:1,fontSize:14,color:T.text}}>{c.label}</span>
+          <input value={budgets[c.k]?String(budgets[c.k]):""} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,"");setBudgets({...budgets,[c.k]:v?Number(v):0});}} inputMode="numeric" placeholder="예산 없음" style={{...inp,width:130}}/>
+        </div>)}
+      </div>
+      <button onClick={()=>{const clean={};Object.keys(budgets).forEach(k=>{if(budgets[k]>0)clean[k]=budgets[k];});onSave(clean);}} style={{padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${LG},#16A34A)`,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>저장</button>
+    </div></div>;
+}
+
+// 가계부 통계 (월별·카테고리별)
+function LedgerStats({sub,entries,customCats,onClose,wide,T}){
+  const expenses=entries.filter(e=>e.lType==="expense");
+  const incomes=entries.filter(e=>e.lType==="income");
+  const totalExp=expenses.reduce((s,e)=>s+(e.amount||0),0);
+  const totalInc=incomes.reduce((s,e)=>s+(e.amount||0),0);
+  // 카테고리별 지출
+  const byCat={};expenses.forEach(e=>{byCat[e.lCat]=(byCat[e.lCat]||0)+(e.amount||0);});
+  const catRows=Object.entries(byCat).map(([k,v])=>({cat:ledgerCat("expense",k,customCats),amount:v,pct:totalExp?Math.round(v/totalExp*100):0})).sort((a,b)=>b.amount-a.amount);
+  // 일자별(월 안에서) 지출 추이 — 날짜별 합
+  const byDate={};expenses.forEach(e=>{if(e.lDate)byDate[e.lDate]=(byDate[e.lDate]||0)+(e.amount||0);});
+  const dateKeys=Object.keys(byDate).sort();
+  const maxDay=Math.max(...Object.values(byDate),1);
+  const maxW=wide?760:520;
+  return <div style={{position:"fixed",inset:0,background:T.bg,zIndex:450,overflowY:"auto",animation:"fadeIn .2s ease",maxWidth:maxW,margin:"0 auto"}}>
+    <div style={{position:"sticky",top:0,zIndex:10,background:T.headerBg,backdropFilter:"blur(20px)",padding:"calc(env(safe-area-inset-top, 0px) + 14px) 20px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${T.border}`}}>
+      <button onClick={onClose} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"8px 14px",fontSize:14,cursor:"pointer"}}>← 닫기</button>
+      <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:16,fontWeight:700,color:T.text}}>📊 {sub.title}</div>
+      <div style={{width:60}}/>
+    </div>
+    <div style={{padding:wide?"28px 32px 80px":"20px 18px 60px",display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px"}}><div style={{fontSize:11,color:T.dim2}}>총 지출</div><div style={{fontSize:20,fontWeight:700,color:"#F87171",fontFamily:"'Noto Serif KR',serif",marginTop:3}}>{wonFmt(totalExp)}</div></div>
+        <div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px"}}><div style={{fontSize:11,color:T.dim2}}>총 수입</div><div style={{fontSize:20,fontWeight:700,color:LG,fontFamily:"'Noto Serif KR',serif",marginTop:3}}>{wonFmt(totalInc)}</div></div>
+      </div>
+      {dateKeys.length>0&&<div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"18px 16px"}}>
+        <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:14}}>📈 날짜별 지출</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:4,height:110,overflowX:"auto"}}>
+          {dateKeys.map(d=>{const h=(byDate[d]/maxDay)*88+4;return <div key={d} style={{flex:"1 0 22px",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><div style={{width:"100%",maxWidth:28,height:`${h}px`,background:"linear-gradient(180deg,#F87171,#DC2626)",borderRadius:4}}/><div style={{fontSize:9,color:T.dim2,transform:"rotate(-45deg)",whiteSpace:"nowrap",marginTop:4}}>{d.slice(5)}</div></div>;})}
+        </div>
+      </div>}
+      {catRows.length>0&&<div style={{background:T.cardBg,borderRadius:14,border:`1px solid ${T.border}`,padding:"18px 16px"}}>
+        <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:14}}>🗂️ 카테고리별 지출</div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {catRows.map(r=><div key={r.cat.k} style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:16,width:24}}>{r.cat.emoji}</span>
+            <span style={{fontSize:13,color:T.text,width:70,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.cat.label}</span>
+            <div style={{flex:1,height:9,background:T.inputBg,borderRadius:5,overflow:"hidden"}}><div style={{width:`${r.pct}%`,height:"100%",background:"#F87171",borderRadius:5,transition:"width .4s"}}/></div>
+            <span style={{fontSize:12,color:T.dim2,width:90,textAlign:"right"}}>{wonFmt(r.amount)}</span>
+          </div>)}
+        </div>
+      </div>}
+      {entries.length===0&&<div style={{textAlign:"center",padding:"50px 20px",color:T.dim}}><div style={{fontSize:40,marginBottom:10}}>📊</div><div style={{fontSize:14,color:T.dim2}}>기록이 쌓이면 통계가 보여요</div></div>}
+    </div>
+  </div>;
 }
 
 function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,onLogin,onLogout,syncing,T}){
@@ -436,7 +813,7 @@ function SettingsScreen({settings,onChange,onExport,onImport,onWipe,stats,user,o
     </div>}
     <div style={sl}>위험</div>
     <div onClick={onWipe} style={{cursor:"pointer"}}><Row icon="⚠️" title="모든 데이터 삭제" desc="복구할 수 없어요" right={<span style={{color:"#F87171",fontSize:18}}>›</span>}/></div>
-    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v2.4</div></div>;
+    <div style={{textAlign:"center",fontSize:11,color:T.dim,marginTop:16}}>GIROK · v3.0</div></div>;
 }
 
 function AuthScreen({onAuthed,onSkip,T}){
@@ -504,6 +881,8 @@ function App(){
   const [confirmCfg,setConfirmCfg]=useState(null);
   const [detailItem,setDetailItem]=useState(null);
   const [diaryDetail,setDiaryDetail]=useState(null);
+  const [ledgerSub,setLedgerSub]=useState(null);
+  const [ledgerStats,setLedgerStats]=useState(null);
   const [winW,setWinW]=useState(typeof window!=="undefined"?window.innerWidth:480);
   const T=THEMES[settings.theme]||THEMES.dark;
 
@@ -566,12 +945,19 @@ function App(){
 
   const activeFolder=data.folders.find(f=>f.id===activeFolderId);
   const isAllFolder=activeFolder?.folderType==="all";
-  const itemsInFolder=(folder)=>folder.folderType==="all"?data.items.filter(i=>{const dt=data.folders.find(f=>f.id===i.folderId)?.folderType;return dt!=="diary";}):data.items.filter(i=>i.folderId===folder.id);
-  const folderItemCount=(folder)=>itemsInFolder(folder).length;
+  const itemsInFolder=(folder)=>folder.folderType==="all"?data.items.filter(i=>{const dt=data.folders.find(f=>f.id===i.folderId)?.folderType;return dt!=="diary"&&dt!=="ledger"&&!i._kind;}):data.items.filter(i=>i.folderId===folder.id&&!i._kind);
+  const folderItemCount=(folder)=>folder.folderType==="ledger"?ledgerSubs(folder.id).length:itemsInFolder(folder).length;
   const openFolder=(folder)=>{if(folder.locked&&!unlockedFolders[folder.id]){setPinTarget(folder);setModal("pin-unlock");}else{setActiveFolderId(folder.id);setView("items");setSearch("");}};
   const getItemDisplayType=(i)=>i._displayType||data.folders.find(f=>f.id===i.folderId)?.folderType||"movie";
   const isDiaryFolder=(folder)=>folder?.folderType==="diary";
   const folderStreak=(folder)=>folder.folderType==="diary"?calcStreak(data.items.filter(i=>i.folderId===folder.id)):0;
+  const isLedgerFolder=(folder)=>folder?.folderType==="ledger";
+  // 하위폴더(가계부) 목록: ledger 폴더에 속한 _kind==="ledgerSub" 아이템
+  const ledgerSubs=(ledgerFolderId)=>data.items.filter(i=>i._kind==="ledgerSub"&&i.folderId===ledgerFolderId).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+  const ledgerEntries=(subId)=>data.items.filter(i=>i._kind==="ledgerEntry"&&i.ledgerSubId===subId);
+  const ledgerSubTotal=(subId)=>{const es=ledgerEntries(subId);return {income:es.filter(e=>e.lType==="income").reduce((s,e)=>s+(e.amount||0),0),expense:es.filter(e=>e.lType==="expense").reduce((s,e)=>s+(e.amount||0),0)};};
+  // 계좌별 잔액: 해당 ledger 폴더의 모든 하위폴더 거래 중 account 일치분 (accId=null이면 전체)
+  const accountBalance=(ledgerFolderId,accId)=>{const subIds=data.items.filter(i=>i._kind==="ledgerSub"&&i.folderId===ledgerFolderId).map(s=>s.id);const all=data.items.filter(i=>i._kind==="ledgerEntry"&&subIds.includes(i.ledgerSubId));const income=all.filter(e=>e.lType==="income"&&(accId==null||e.account===accId)).reduce((s,e)=>s+(e.amount||0),0);const expense=all.filter(e=>e.lType==="expense"&&(accId==null||e.account===accId)).reduce((s,e)=>s+(e.amount||0),0);let transfer=0;if(accId!=null){const tin=all.filter(e=>e.lType==="transfer"&&e.toAccount===accId).reduce((s,e)=>s+(e.amount||0),0);const tout=all.filter(e=>e.lType==="transfer"&&e.fromAccount===accId).reduce((s,e)=>s+(e.amount||0),0);transfer=tin-tout;}return {income,expense,balance:income-expense+transfer};};
 
   // ── UNIFIED SEARCH: title, creator/fields, tags, status label, album kind ──
   const matchItem=(i,q)=>{
@@ -589,11 +975,11 @@ function App(){
     return true;
   };
   const filteredItems=activeFolder?itemsInFolder(activeFolder).filter(i=>(!search||matchItem(i,search.toLowerCase()))&&passFilter(i)).sort(sortFn):[];
-  const globalResults=globalSearch.trim()?data.items.filter(i=>{const dt=data.folders.find(f=>f.id===i.folderId)?.folderType;return dt!=="diary"&&matchItem(i,globalSearch.toLowerCase());}).sort(sortFn):[];
+  const globalResults=globalSearch.trim()?data.items.filter(i=>{const dt=data.folders.find(f=>f.id===i.folderId)?.folderType;return dt!=="diary"&&dt!=="ledger"&&!i._kind&&matchItem(i,globalSearch.toLowerCase());}).sort(sortFn):[];
   const filterActive=filterType!=="all"||filterRating>0;
 
   const handleLogout=async()=>{if(sb){try{await sb.auth.signOut();}catch(e){}}pulledRef.current=false;setUser(null);setShowAuth(false);setView("folders");showToast("로그아웃 됐어요 (이 기기에는 기록이 남아있어요)");};
-  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"2.4"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);updateSettings({...settings,lastBackup:new Date().toISOString()});showToast("백업 완료 ✅");setModal(null);};
+  const handleExport=async()=>{showToast("백업 준비 중...");const imgsRaw=await idbAll();const imgs={};for(const[k,v]of Object.entries(imgsRaw)){imgs[k]=(typeof v==="string")?v:await blobToDataUrl(v);}const blob=new Blob([JSON.stringify({data,imgs,settings,version:"3.0"},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`미디어기록_${nowStamp()}.json`;a.click();URL.revokeObjectURL(url);updateSettings({...settings,lastBackup:new Date().toISOString()});showToast("백업 완료 ✅");setModal(null);};
   const handleImport=(e)=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=async(ev)=>{try{const p=JSON.parse(ev.target.result);const d=p.data||p;if(!d.folders||!d.items)throw new Error();if(p.imgs){for(const[k,durl]of Object.entries(p.imgs)){try{await idbPut(k,durl);}catch{}}}if(p.settings)updateSettings(p.settings);persist(d);showToast("복원 완료 🎉");setModal(null);}catch{showToast("올바른 백업 파일이 아니에요","err");}};r.readAsText(file);};
   const askConfirm=(cfg)=>setConfirmCfg(cfg);
   const handleWipe=()=>askConfirm({title:"모든 데이터 삭제",message:"모든 폴더와 기록, 사진이 사라져요.\n복구할 수 없어요. 정말 삭제할까요?",confirmText:"전체 삭제",onConfirm:async()=>{const all=await idbAll();for(const k of Object.keys(all))await idbDelete(k);localStorage.removeItem(SK);persist(DEFAULT_DATA);showToast("전체 삭제 완료");setView("folders");setConfirmCfg(null);}});
@@ -634,7 +1020,7 @@ function App(){
           <div style={{display:"flex",gap:8}}>
             {view==="folders"&&<button onClick={()=>setView("settings")} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"8px 11px",fontSize:14,cursor:"pointer",lineHeight:1}}>⚙️</button>}
             {view==="items"&&!isAllFolder&&<button onClick={()=>{setEditTarget(activeFolder);setModal("folder");}} style={{background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.muted,padding:"8px 12px",fontSize:13,cursor:"pointer",fontWeight:600,lineHeight:1}}>폴더 수정</button>}
-            {view!=="settings"&&<button onClick={()=>{setEditTarget(null);if(view==="folders")setModal("folder");else if(isDiaryFolder(activeFolder))setModal("diary");else setModal("item");}} style={{background:"linear-gradient(135deg,#7C3AED,#C084FC)",border:"none",borderRadius:10,color:"#fff",padding:"8px 0",width:42,fontSize:18,fontWeight:700,cursor:"pointer",lineHeight:1}}>+</button>}</div></div>
+            {view!=="settings"&&<button onClick={()=>{setEditTarget(null);if(view==="folders")setModal("folder");else if(isDiaryFolder(activeFolder))setModal("diary");else if(isLedgerFolder(activeFolder))setModal("ledgerSub");else setModal("item");}} style={{background:"linear-gradient(135deg,#7C3AED,#C084FC)",border:"none",borderRadius:10,color:"#fff",padding:"8px 0",width:42,fontSize:18,fontWeight:700,cursor:"pointer",lineHeight:1}}>+</button>}</div></div>
         {view!=="settings"&&<input value={view==="folders"?globalSearch:search} onChange={e=>view==="folders"?setGlobalSearch(e.target.value):setSearch(e.target.value)} placeholder={view==="folders"?"제목, 가수, 상태 등 검색...":"이 폴더에서 검색..."} style={{width:"100%",background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:10,color:T.text,padding:"9px 14px",fontSize:13,outline:"none"}}/>}
       </div>
       {view==="settings"
@@ -643,7 +1029,8 @@ function App(){
           {view==="folders"&&globalSearch.trim()&&(<div style={{marginBottom:20}}><div style={{fontSize:12,color:T.dim2,marginBottom:10,fontWeight:600}}>검색 결과 {globalResults.length}개</div>{globalResults.length===0?<div style={{textAlign:"center",padding:"30px",color:T.dim,fontSize:13}}>결과 없음</div>:<div style={{display:"flex",flexDirection:"column",gap:12}}>{globalResults.map(item=><ItemCard key={item.id} item={{...item,_displayType:getItemDisplayType(item)}} folderType={getItemDisplayType(item)} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}} onDelete={delItem}/>)}</div>}</div>)}
           {view==="folders"&&!globalSearch.trim()&&(<div style={{display:"grid",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(260px, 1fr))":"1fr 1fr",gap:isWide?16:12}}>{data.folders.map(folder=><FolderCard key={folder.id} folder={folder} itemCount={folderItemCount(folder)} streak={folderStreak(folder)} T={T} onClick={()=>openFolder(folder)}/>)}</div>)}
           {view==="items"&&isDiaryFolder(activeFolder)&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📔</div><div style={{fontSize:15,color:T.dim2}}>{search?"검색 결과가 없어요":"아직 일기가 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 오늘 일기를 적어보세요!</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:isWide?720:undefined,margin:isWide?"0 auto":undefined}}>{[...filteredItems].sort((a,b)=>b.dateKey.localeCompare(a.dateKey)).map(entry=><DiaryCard key={entry.id} entry={entry} T={T} onOpen={setDiaryDetail} onEdit={e=>{setEditTarget(e);setModal("diary");}} onDelete={delItem}/>)}</div>)}
-          {view==="items"&&!isDiaryFolder(activeFolder)&&<div style={{marginBottom:14}}>
+          {view==="items"&&isLedgerFolder(activeFolder)&&<LedgerHome ledgerFolder={activeFolder} subs={ledgerSubs(activeFolder.id)} subTotal={ledgerSubTotal} fixedExpenses={activeFolder.fixedExpenses||[]} accounts={activeFolder.accounts||[]} accountBalance={(accId)=>accountBalance(activeFolder.id,accId)} wide={isWide} T={T} onOpenSub={setLedgerSub} onAddSub={()=>setModal("ledgerSub")} onManageAccounts={()=>setModal("accounts")} onDeleteSub={(id)=>askConfirm({title:"가계부 삭제",message:"이 가계부와 안의 모든 기록이 사라져요.",onConfirm:()=>{persist({...data,items:data.items.filter(i=>i.id!==id&&i.ledgerSubId!==id)});setConfirmCfg(null);showToast("삭제했어요");}})} onManageFixed={()=>setModal("fixedExpense")}/>}
+          {view==="items"&&!isDiaryFolder(activeFolder)&&!isLedgerFolder(activeFolder)&&<div style={{marginBottom:14}}>
             <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:showFilters?12:0,flexWrap:"wrap"}}>
               <div style={{display:"flex",gap:6,overflowX:"auto",flex:1}}>
                 {[["newest","최신순"],["oldest","오래된순"],["rating","별점높은순"],["ratingLow","별점낮은순"],["title","제목순"]].map(([k,l])=><button key={k} onClick={()=>setSortInline(k)} style={{padding:"7px 12px",borderRadius:9,fontSize:12.5,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",border:`1px solid ${sortInline===k?"#C084FC":T.border}`,background:sortInline===k?"#C084FC22":"transparent",color:sortInline===k?"#C084FC":T.dim2}}>{l}</button>)}
@@ -656,7 +1043,7 @@ function App(){
               {filterActive&&<button onClick={()=>{setFilterType("all");setFilterRating(0);}} style={{alignSelf:"flex-start",padding:"5px 12px",borderRadius:8,fontSize:11.5,fontWeight:600,cursor:"pointer",border:"none",background:T.inputBg,color:T.dim2}}>필터 초기화</button>}
             </div>}
           </div>}
-          {view==="items"&&!isDiaryFolder(activeFolder)&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📭</div><div style={{fontSize:15,color:T.dim2}}>{search||filterActive?"조건에 맞는 기록이 없어요":"아직 기록이 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 추가해보세요!</div></div>:<div style={{display:isWide?"grid":"flex",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(400px, 1fr))":undefined,flexDirection:isWide?undefined:"column",gap:16}}>{filteredItems.map(item=><ItemCard key={item.id} item={isAllFolder?{...item,_displayType:getItemDisplayType(item)}:item} folderType={isAllFolder?getItemDisplayType(item):activeFolder?.folderType} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setModal("item");}} onDelete={delItem}/>)}</div>)}
+          {view==="items"&&!isDiaryFolder(activeFolder)&&!isLedgerFolder(activeFolder)&&(filteredItems.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:48,marginBottom:12}}>📭</div><div style={{fontSize:15,color:T.dim2}}>{search||filterActive?"조건에 맞는 기록이 없어요":"아직 기록이 없어요"}</div><div style={{fontSize:12,marginTop:6}}>+ 버튼으로 추가해보세요!</div></div>:<div style={{display:isWide?"grid":"flex",gridTemplateColumns:isWide?"repeat(auto-fill, minmax(400px, 1fr))":undefined,flexDirection:isWide?undefined:"column",gap:16}}>{filteredItems.map(item=><ItemCard key={item.id} item={isAllFolder?{...item,_displayType:getItemDisplayType(item)}:item} folderType={isAllFolder?getItemDisplayType(item):activeFolder?.folderType} T={T} onOpen={setDetailItem} onEdit={i=>{setEditTarget(i);setModal("item");}} onDelete={delItem}/>)}</div>)}
         </div>}
       {toast&&<div style={{position:"fixed",bottom:40,left:"50%",transform:"translateX(-50%)",background:toast.type==="err"?"#7F1D1D":"#14532D",border:`1px solid ${toast.type==="err"?"#F87171":"#34D399"}44`,borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:600,color:toast.type==="err"?"#FCA5A5":"#6EE7B7",zIndex:999,animation:"fadeIn .2s ease",whiteSpace:"nowrap"}}>{toast.msg}</div>}
     </div>
@@ -667,6 +1054,14 @@ function App(){
     {modal==="diary"&&<DiaryModal entry={editTarget} folderId={activeFolderId} T={T} onImgError={msg=>showToast(msg,"err")} onClose={()=>{setModal(null);setEditTarget(null);}} onSave={(entry)=>{persist({...data,items:editTarget?data.items.map(i=>i.id===entry.id?entry:i):[entry,...data.items]});setModal(null);setEditTarget(null);showToast(editTarget?"일기 수정 완료":"오늘 일기 저장 🔥");}}/>}
     {detailItem&&<DetailView item={detailItem} folderType={getItemDisplayType(detailItem)} wide={isWide} T={T} onClose={()=>setDetailItem(null)} onEdit={i=>{setDetailItem(null);setEditTarget(i);setActiveFolderId(i.folderId);setModal("item");}}/>}
     {diaryDetail&&<DiaryDetail entry={diaryDetail} wide={isWide} T={T} onClose={()=>setDiaryDetail(null)} onEdit={e=>{setDiaryDetail(null);setEditTarget(e);setModal("diary");}}/>}
+    {ledgerSub&&<LedgerSubView sub={data.items.find(i=>i.id===ledgerSub.id)||ledgerSub} entries={ledgerEntries(ledgerSub.id)} accounts={activeFolder?.accounts||[]} customCats={activeFolder?.customCats} wide={isWide} T={T} onClose={()=>setLedgerSub(null)} onAddEntry={()=>{setEditTarget(null);setModal("ledgerEntry");}} onEditEntry={e=>{setEditTarget(e);setModal("ledgerEntry");}} onManageBudget={()=>setModal("budget")} onOpenStats={()=>setLedgerStats(ledgerSub)} onDeleteEntry={(id)=>{const doDel=()=>{persist({...data,items:data.items.filter(i=>i.id!==id)});setConfirmCfg(null);};if(settings.confirmDelete)askConfirm({title:"기록 삭제",message:"이 기록을 삭제할까요?",onConfirm:doDel});else doDel();}}/>}
+    {ledgerStats&&<LedgerStats sub={data.items.find(i=>i.id===ledgerStats.id)||ledgerStats} entries={ledgerEntries(ledgerStats.id)} customCats={activeFolder?.customCats} wide={isWide} T={T} onClose={()=>setLedgerStats(null)}/>}
+    {modal==="ledgerSub"&&<LedgerSubModal fixedCount={(activeFolder?.fixedExpenses||[]).length} T={T} onClose={()=>setModal(null)} onSave={(title)=>{const subId=uid();const fixed=activeFolder?.fixedExpenses||[];const defAcc=(activeFolder?.accounts||[])[0]?.id||null;const today2=new Date().toISOString().slice(0,10);const sub={id:subId,_kind:"ledgerSub",folderId:activeFolderId,title,createdAt:new Date().toISOString()};const fixedEntries=fixed.map(f=>({id:uid(),_kind:"ledgerEntry",ledgerSubId:subId,lType:f.kind==="income"?"income":"expense",lCat:f.kind==="income"?"salary":"sub",account:defAcc,amount:f.amount,memo:f.name,lDate:today2,isFixed:true,createdAt:new Date().toISOString()}));persist({...data,items:[sub,...fixedEntries,...data.items]});setModal(null);showToast("가계부를 만들었어요 💰");}}/>}
+    {modal==="ledgerEntry"&&ledgerSub&&<LedgerEntryModal entry={editTarget} subId={ledgerSub.id} accounts={activeFolder?.accounts||[]} customCats={activeFolder?.customCats} onManageCats={()=>setModal("categories")} T={T} onClose={()=>{setModal(null);setEditTarget(null);}} onSave={(entry)=>{persist({...data,items:editTarget?data.items.map(i=>i.id===entry.id?entry:i):[entry,...data.items]});setModal(null);setEditTarget(null);}}/>}
+    {modal==="categories"&&activeFolder&&<CategoryModal customCats={activeFolder.customCats} T={T} onClose={()=>setModal(ledgerSub?"ledgerEntry":null)} onSave={(cc)=>{persist({...data,folders:data.folders.map(f=>f.id===activeFolderId?{...f,customCats:cc}:f)});setModal(ledgerSub?"ledgerEntry":null);showToast("카테고리를 저장했어요 🏷️");}}/>}
+    {modal==="budget"&&ledgerSub&&<BudgetModal sub={data.items.find(i=>i.id===ledgerSub.id)||ledgerSub} customCats={activeFolder?.customCats} T={T} onClose={()=>setModal(null)} onSave={(budgets)=>{persist({...data,items:data.items.map(i=>i.id===ledgerSub.id?{...i,budgets}:i)});setModal(null);showToast("예산을 저장했어요 🎯");}}/>}
+    {modal==="accounts"&&activeFolder&&<AccountModal accounts={activeFolder.accounts||[]} T={T} onClose={()=>setModal(null)} onSave={(list)=>{persist({...data,folders:data.folders.map(f=>f.id===activeFolderId?{...f,accounts:list}:f)});setModal(null);showToast("계좌를 저장했어요 💳");}}/>}
+    {modal==="fixedExpense"&&activeFolder&&<FixedExpenseModal fixedExpenses={activeFolder.fixedExpenses||[]} T={T} onClose={()=>setModal(null)} onSave={(list)=>{persist({...data,folders:data.folders.map(f=>f.id===activeFolderId?{...f,fixedExpenses:list}:f)});setModal(null);showToast("고정 지출을 저장했어요");}}/>}
     {confirmCfg&&<ConfirmDialog {...confirmCfg} T={T} onCancel={()=>setConfirmCfg(null)}/>}
   </>);
 }
