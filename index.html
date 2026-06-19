@@ -538,7 +538,7 @@ function LedgerSubView({sub,entries,accounts,customCats,onClose,onAddEntry,onEdi
 }
 
 // 거래 입력 모달
-function LedgerEntryModal({entry,subId,accounts,onSave,onClose,T}){
+function LedgerEntryModal({entry,subId,accounts,customCats,onManageCats,onSave,onClose,T}){
   const [lType,setLType]=useState(entry?.lType||"expense");
   const [lCat,setLCat]=useState(entry?.lCat||"food");
   const [amount,setAmount]=useState(entry?.amount?String(entry.amount):"");
