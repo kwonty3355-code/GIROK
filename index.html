@@ -333,7 +333,7 @@ function FolderCard({folder,itemCount,streak,onClick,onPin,onEdit,T}){
   const isDiary=folder.folderType==="diary";
   const [menu,setMenu]=useState(false);
   const hasMenu=onPin||onEdit;
-  return <div onClick={onClick} style={{background:T.cardBg,border:`1px solid ${folder.pinned?folder.color+"55":folder.color+"2a"}`,borderRadius:18,padding:"18px 16px",cursor:"pointer",position:"relative",transition:"transform .2s,box-shadow .2s",display:"flex",flexDirection:"column",gap:12,minWidth:0,boxSizing:"border-box"}}
+  return <div onClick={onClick} style={{background:T.cardBg,border:`1px solid ${folder.pinned?folder.color+"55":folder.color+"2a"}`,borderRadius:18,padding:"18px 16px",cursor:"pointer",position:"relative",zIndex:menu?40:1,transition:"transform .2s,box-shadow .2s",display:"flex",flexDirection:"column",gap:12,minWidth:0,boxSizing:"border-box"}}
     onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 8px 24px ${folder.color}20`;}} onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}>
     <div style={{position:"absolute",top:12,right:12,display:"flex",gap:6,alignItems:"center"}}>
       {folder.pinned&&<span style={{fontSize:12,color:folder.color}}>📌</span>}
@@ -342,7 +342,7 @@ function FolderCard({folder,itemCount,streak,onClick,onPin,onEdit,T}){
       {hasMenu&&<button onClick={e=>{e.stopPropagation();setMenu(m=>!m);}} style={{width:26,height:26,borderRadius:8,border:"none",background:menu?`${folder.color}22`:"transparent",color:T.muted,fontSize:16,cursor:"pointer",lineHeight:1,padding:0}}>⋯</button>}
     </div>
     {menu&&<><div onClick={e=>{e.stopPropagation();setMenu(false);}} style={{position:"fixed",inset:0,zIndex:30}}/>
-      <div style={{position:"absolute",top:42,right:12,zIndex:31,background:T.surface,border:`1px solid ${T.borderStrong}`,borderRadius:12,padding:6,boxShadow:"0 8px 28px rgba(0,0,0,0.4)",minWidth:140,display:"flex",flexDirection:"column",gap:2}}>
+      <div style={{position:"absolute",top:42,right:12,zIndex:50,background:T.surface,border:`1px solid ${T.borderStrong}`,borderRadius:12,padding:6,boxShadow:"0 8px 28px rgba(0,0,0,0.4)",minWidth:140,display:"flex",flexDirection:"column",gap:2}}>
         {onPin&&<button onClick={e=>{e.stopPropagation();setMenu(false);onPin();}} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",color:T.text,padding:"10px 12px",fontSize:13.5,fontWeight:600,cursor:"pointer",borderRadius:8,textAlign:"left"}}>📌 {folder.pinned?"고정 해제":"위로 고정"}</button>}
         {onEdit&&<button onClick={e=>{e.stopPropagation();setMenu(false);onEdit();}} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",color:T.text,padding:"10px 12px",fontSize:13.5,fontWeight:600,cursor:"pointer",borderRadius:8,textAlign:"left"}}>✏️ 폴더 수정</button>}
       </div></>}
@@ -426,7 +426,7 @@ const LG="#5BA873";
 // 하위 폴더 카드
 function LedgerSubCard({sub,total,onOpen,onRename,onDelete,T}){
   const [menu,setMenu]=useState(false);
-  return <div onClick={()=>onOpen(sub)} style={{background:T.cardBg,border:`1px solid ${LG}2a`,borderRadius:16,padding:"16px 18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,position:"relative"}}>
+  return <div onClick={()=>onOpen(sub)} style={{background:T.cardBg,border:`1px solid ${LG}2a`,borderRadius:16,padding:"16px 18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,position:"relative",zIndex:menu?40:1}}>
     <div style={{width:46,height:46,borderRadius:12,background:`${LG}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🧾</div>
     <div style={{flex:1,minWidth:0}}>
       <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:16,fontWeight:700,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sub.title}</div>
@@ -437,7 +437,7 @@ function LedgerSubCard({sub,total,onOpen,onRename,onDelete,T}){
     </div>
     <button onClick={e=>{e.stopPropagation();setMenu(m=>!m);}} style={{flexShrink:0,width:28,height:28,borderRadius:8,border:"none",background:menu?`${LG}22`:"transparent",color:T.muted,fontSize:16,cursor:"pointer",lineHeight:1,padding:0}}>⋯</button>
     {menu&&<><div onClick={e=>{e.stopPropagation();setMenu(false);}} style={{position:"fixed",inset:0,zIndex:30}}/>
-      <div style={{position:"absolute",top:46,right:14,zIndex:31,background:T.surface,border:`1px solid ${T.borderStrong}`,borderRadius:12,padding:6,boxShadow:"0 8px 28px rgba(0,0,0,0.4)",minWidth:130,display:"flex",flexDirection:"column",gap:2}}>
+      <div style={{position:"absolute",top:46,right:14,zIndex:50,background:T.surface,border:`1px solid ${T.borderStrong}`,borderRadius:12,padding:6,boxShadow:"0 8px 28px rgba(0,0,0,0.4)",minWidth:130,display:"flex",flexDirection:"column",gap:2}}>
         <button onClick={e=>{e.stopPropagation();setMenu(false);onRename(sub);}} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",color:T.text,padding:"10px 12px",fontSize:13.5,fontWeight:600,cursor:"pointer",borderRadius:8,textAlign:"left"}}>✏️ 이름 수정</button>
         <button onClick={e=>{e.stopPropagation();setMenu(false);onDelete(sub.id);}} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",color:"#F87171",padding:"10px 12px",fontSize:13.5,fontWeight:600,cursor:"pointer",borderRadius:8,textAlign:"left"}}>🗑️ 삭제</button>
       </div></>}
