@@ -15,7 +15,7 @@
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>html,body{margin:0;padding:0;background:#09090B;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;}</style>
+<style>html,body{margin:0;padding:0;background:#09090B;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;overflow-x:hidden;max-width:100%;}*{box-sizing:border-box;}</style>
 </head>
 <body>
 <div id="root"></div>
@@ -205,7 +205,7 @@ function ItemCard({item,folderType,onEdit,onDelete,onOpen,T}){
   const sset=getStatusMeta(item._displayType||folderType);
   const s=sset?(sset[item.itemStatus]||Object.values(sset)[0]):null;
   const infoRows=ft.itemFields.filter(f=>f.key!=="albumKind").map(f=>({label:f.label,val:item[f.key]})).filter(r=>r.val);
-  return <div style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:18,overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s ease both",position:"relative"}}>
+  return <div style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:18,overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s ease both",position:"relative",minWidth:0,boxSizing:"border-box"}}>
     <div style={{position:"absolute",top:10,right:10,display:"flex",gap:6,zIndex:2}}>
       <button onClick={e=>{e.stopPropagation();onEdit(item);}} style={{width:30,height:30,borderRadius:9,border:"none",background:"rgba(0,0,0,0.55)",color:"#fff",fontSize:13,cursor:"pointer",backdropFilter:"blur(8px)"}}>✏️</button>
       <button onClick={e=>{e.stopPropagation();onDelete(item.id);}} style={{width:30,height:30,borderRadius:9,border:"none",background:"rgba(190,30,30,0.6)",color:"#fff",fontSize:13,cursor:"pointer",backdropFilter:"blur(8px)"}}>✕</button></div>
@@ -333,7 +333,7 @@ function FolderCard({folder,itemCount,streak,onClick,onPin,onEdit,T}){
   const isDiary=folder.folderType==="diary";
   const [menu,setMenu]=useState(false);
   const hasMenu=onPin||onEdit;
-  return <div onClick={onClick} style={{background:T.cardBg,border:`1px solid ${folder.pinned?folder.color+"55":folder.color+"2a"}`,borderRadius:18,padding:"18px 16px",cursor:"pointer",position:"relative",transition:"transform .2s,box-shadow .2s",display:"flex",flexDirection:"column",gap:12}}
+  return <div onClick={onClick} style={{background:T.cardBg,border:`1px solid ${folder.pinned?folder.color+"55":folder.color+"2a"}`,borderRadius:18,padding:"18px 16px",cursor:"pointer",position:"relative",transition:"transform .2s,box-shadow .2s",display:"flex",flexDirection:"column",gap:12,minWidth:0,boxSizing:"border-box"}}
     onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 8px 24px ${folder.color}20`;}} onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}>
     <div style={{position:"absolute",top:12,right:12,display:"flex",gap:6,alignItems:"center"}}>
       {folder.pinned&&<span style={{fontSize:12,color:folder.color}}>📌</span>}
@@ -346,7 +346,7 @@ function FolderCard({folder,itemCount,streak,onClick,onPin,onEdit,T}){
         {onPin&&<button onClick={e=>{e.stopPropagation();setMenu(false);onPin();}} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",color:T.text,padding:"10px 12px",fontSize:13.5,fontWeight:600,cursor:"pointer",borderRadius:8,textAlign:"left"}}>📌 {folder.pinned?"고정 해제":"위로 고정"}</button>}
         {onEdit&&<button onClick={e=>{e.stopPropagation();setMenu(false);onEdit();}} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",color:T.text,padding:"10px 12px",fontSize:13.5,fontWeight:600,cursor:"pointer",borderRadius:8,textAlign:"left"}}>✏️ 폴더 수정</button>}
       </div></>}
-    <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:44,height:44,borderRadius:12,background:`${folder.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`1px solid ${folder.color}30`}}>{ft.emoji}</div>
+    <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:44,height:44,borderRadius:12,background:`${folder.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`1px solid ${folder.color}30`,flexShrink:0}}>{ft.emoji}</div>
       <div style={{minWidth:0,flex:1}}><div style={{fontFamily:"'Noto Serif KR',serif",fontSize:15,fontWeight:700,color:T.text,paddingRight:hasMenu?24:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{folder.name}</div><div style={{fontSize:11,color:folder.color,fontWeight:600,marginTop:2}}>{ft.label} · {itemCount}{isDiary?"일":"개"}</div></div></div>
   </div>;
 }
